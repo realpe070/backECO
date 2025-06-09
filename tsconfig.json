@@ -41,16 +41,14 @@
       "./node_modules/@types",
       "./src/types"
     ],
-    "types": [
-      "node",
-      "jest"
-    ]
+    "types": [],
   },
   "include": [
     "src/**/*"
   ],
   "exclude": [
     "node_modules",
-    "dist"
+    "dist",
+    "**/*.spec.ts"
   ]
 }
