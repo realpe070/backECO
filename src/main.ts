@@ -62,12 +62,32 @@ async function bootstrap() {
       logger: ['error', 'warn', 'debug', 'log', 'verbose'],
     });
     const configService = app.get(ConfigService);
-    const networkIP = getNetworkInfo(); // Obtiene la IP local o pública
+    const networkIP = getNetworkInfo();
     const logger = new Logger('Bootstrap');
+    const port = configService.get('PORT') || 4300;
+    const environment = configService.get('NODE_ENV') || 'development';
 
     // Actualizar configuración CORS
     app.enableCors({
-      origin: true, // Esto permite cualquier origen en desarrollo
+      origin: (origin: string | undefined, callback: (error: Error | null, allow?: boolean) => void) => {
+        const allowedOrigins = [
+          'http://localhost:3000',
+          'http://localhost:4200',
+          'http://localhost:4300',
+          'http://localhost:54991',
+          'http://127.0.0.1:54991',
+          'http://localhost:*',
+          'http://127.0.0.1:*'
+        ];
+
+        if (!origin || allowedOrigins.some(allowed =>
+          origin.match(new RegExp(allowed.replace('*', '.*')))
+        )) {
+          callback(null, true);
+        } else {
+          callback(null, false);
+        }
+      },
       methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
       allowedHeaders: [
         'Content-Type',
@@ -77,17 +97,38 @@ async function bootstrap() {
         'Origin',
         'Access-Control-Allow-Origin',
         'Access-Control-Allow-Credentials',
-        'Access-Control-Allow-Methods'
+        'Access-Control-Allow-Methods',
+        'X-Requested-With'
       ],
-      credentials: true
+      exposedHeaders: ['Authorization'],
+      credentials: true,
+      maxAge: 3600
     });
 
-    // Middleware simplificado para CORS
+    // Middleware mejorado para autenticación y CORS
     app.use((req: any, res: any, next: any) => {
-      res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
+      const origin = req.headers.origin;
+      res.header('Access-Control-Allow-Origin', origin);
       res.header('Access-Control-Allow-Credentials', 'true');
       res.header('Access-Control-Allow-Methods', 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS');
-      res.header('Access-Control-Allow-Headers', 'Content-Type, Accept, Authorization, x-client-type, Origin');
+      res.header(
+        'Access-Control-Allow-Headers',
+        'Content-Type, Accept, Authorization, x-client-type, Origin, Access-Control-Allow-Origin, X-Requested-With'
+      );
+
+      // Manejo especial para preflight requests
+      if (req.method === 'OPTIONS') {
+        res.header('Access-Control-Max-Age', '3600');
+        res.status(204).end();
+        return;
+      }
+
+      // Logging de token para debugging
+      const token = req.headers.authorization;
+      if (token) {
+        logger.debug(`🔑 Token received: ${token.substring(0, 20)}...`);
+      }
+
       next();
     });
 
@@ -102,18 +143,17 @@ async function bootstrap() {
     app.useGlobalFilters(new HttpExceptionFilter());
     app.useGlobalInterceptors(new TransformInterceptor());
 
-    const port = configService.get('PORT') || 4300;
-
     console.log(`
 🔍 Server Configuration:
 - Public URL: http://${networkIP}:${port}
 - Local URL: http://localhost:${port}
-- Environment: ${process.env.NODE_ENV || 'development'}
-- Service: Mobile App Backend
+- Environment: ${environment}
+- Admin Email: ${configService.get('ADMIN_EMAIL')}
+- Firebase Project: ${configService.get('FIREBASE_PROJECT_ID')}
     `);
 
     await app.listen(port, '0.0.0.0');
-    logger.log(`🚀 Server running on port ${port}`);
+    logger.log(`🚀 Server running on port ${port} in ${environment} mode`);
   } catch (error) {
     console.error('❌ Server startup error:', error);
     process.exit(1);

@@ -1,90 +1,95 @@
+import { Injectable, Logger, OnModuleInit, UnauthorizedException } from '@nestjs/common';
 import * as admin from 'firebase-admin';
-import { Injectable, OnModuleInit, UnauthorizedException, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import * as fs from 'fs';
 import * as path from 'path';
+import * as fs from 'fs';
 
 @Injectable()
 export class FirebaseService implements OnModuleInit {
   private readonly logger = new Logger(FirebaseService.name);
-  private db!: FirebaseFirestore.Firestore;
   private auth!: admin.auth.Auth;
+  private db!: admin.firestore.Firestore;
 
-  constructor(private readonly configService: ConfigService) {}
+  constructor(private configService: ConfigService) { }
 
-  onModuleInit() {
+  async onModuleInit() {
     try {
-      if (admin.apps.length === 0) {
-        const serviceAccountPath = path.join(__dirname, '../../config/ecobreack-5dfe5-firebase-adminsdk-5ltxh-c1ed0666d0.json');
-        
-        // Verificar si el archivo de credenciales existe
-        if (!fs.existsSync(serviceAccountPath)) {
-          this.logger.error(`Firebase credentials file not found at path: ${serviceAccountPath}`);
-          throw new Error('Firebase credentials file is missing');
-        }
+      const keyPath = path.join(__dirname, '..', '..', 'config', 'firebase-key.json');
+      this.logger.debug(`📁 Loading Firebase config from: ${keyPath}`);
 
-        const serviceAccount = JSON.parse(fs.readFileSync(serviceAccountPath, 'utf8'));
+      // Leer directamente del archivo .env
+      const privateKey = this.configService.get<string>('FIREBASE_PRIVATE_KEY');
+      const clientEmail = this.configService.get<string>('FIREBASE_CLIENT_EMAIL');
+      const projectId = this.configService.get<string>('FIREBASE_PROJECT_ID');
 
-        admin.initializeApp({
-          credential: admin.credential.cert(serviceAccount),
-        });
-
-        this.logger.log('✅ Firebase initialized successfully');
-      } else {
-        this.logger.log('Firebase app already initialized');
+      if (!privateKey || !clientEmail || !projectId) {
+        throw new Error('Missing Firebase configuration in .env');
       }
 
-      this.db = admin.firestore();
-      this.auth = admin.auth();
+      const serviceAccount = {
+        projectId,
+        clientEmail,
+        private_key: privateKey.replace(/\\n/g, '\n')
+      };
+
+      if (!admin.apps.length) {
+        const app = admin.initializeApp({
+          credential: admin.credential.cert(serviceAccount as admin.ServiceAccount)
+        });
+
+        this.auth = app.auth();
+        this.db = app.firestore();
+        this.logger.log('✅ Firebase initialized with env credentials');
+      } else {
+        this.auth = admin.auth();
+        this.db = admin.firestore();
+      }
+
+      // Verificar la conexión
+      await this.auth.listUsers(1);
+      this.logger.log('✅ Firebase connection verified');
     } catch (error) {
-      this.logger.error('❌ Firebase initialization error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      this.logger.error('❌ Firebase connection error:', errorMessage);
+      if (error instanceof Error && error.stack) {
+        this.logger.error('Stack trace:', error.stack);
+      }
       throw error;
     }
   }
 
-  getFirestore(): FirebaseFirestore.Firestore {
-    return this.db;
+  getAuth(): admin.auth.Auth {
+    if (!this.auth) {
+      throw new Error('Firebase auth not initialized');
+    }
+    return this.auth;
   }
 
-  getAuth(): admin.auth.Auth {
-    return this.auth;
+  getFirestore(): admin.firestore.Firestore {
+    if (!this.db) {
+      throw new Error('Firebase Firestore not initialized');
+    }
+    return this.db;
   }
 
   async verifyToken(token: string) {
     try {
-      this.logger.debug(`Verifying token: ${token.substring(0, 20)}...`);
-      const decodedToken = await this.auth.verifyIdToken(token);
-      const userRecord = await this.auth.getUser(decodedToken.uid);
+      if (!token || !token.startsWith('Bearer ')) {
+        throw new UnauthorizedException('Token no proporcionado o formato inválido');
+      }
 
+      const tokenId = token.split('Bearer ')[1];
+      this.logger.debug(`🔍 Verificando token: ${tokenId.substring(0, 20)}...`);
+
+      const decodedToken = await this.auth.verifyIdToken(tokenId);
       return {
-        uid: userRecord.uid,
-        email: userRecord.email,
-        role: userRecord.email === 'ecoecobreack@gmail.com' ? 'admin' : 'user',
-        disabled: userRecord.disabled,
-        metadata: userRecord.metadata,
-        verified: userRecord.emailVerified,
+        uid: decodedToken.uid,
+        email: decodedToken.email,
+        role: decodedToken.email === this.configService.get('ADMIN_EMAIL') ? 'admin' : 'user',
       };
     } catch (error) {
-      this.logger.error('Error verifying Firebase ID token:', error);
+      this.logger.error('❌ Error verificando token:', error);
       throw new UnauthorizedException('Token inválido o expirado');
-    }
-  }
-
-  async getUsers() {
-    try {
-      const users = await this.auth.listUsers();
-      return users.users.map(user => ({
-        uid: user.uid,
-        name: user.displayName,
-        email: user.email,
-        registerDate: user.metadata.creationTime,
-        lastAccess: user.metadata.lastSignInTime,
-        status: user.disabled ? 'Inactivo' : 'Activo',
-        role: 'usuario', // Aquí podrías agregar roles si es necesario
-      }));
-    } catch (error) {
-      this.logger.error('Error getting users from Firebase:', error);
-      throw new Error('Error fetching users');
     }
   }
 }

@@ -1,9 +1,11 @@
-import { Module, Global } from '@nestjs/common';
+import { Global, Module } from '@nestjs/common';
 import { FirebaseService } from './firebase.service';
+import { ConfigModule } from '@nestjs/config';
 
-@Global() // 👈 Hace que FirebaseModule esté disponible en toda la aplicación
+@Global()
 @Module({
+  imports: [ConfigModule],
   providers: [FirebaseService],
-  exports: [FirebaseService], // Exportamos FirebaseService para otros módulos
+  exports: [FirebaseService],
 })
-export class FirebaseModule {}
+export class FirebaseModule { }
