@@ -14,46 +14,43 @@ export class FirebaseService implements OnModuleInit {
 
   async onModuleInit() {
     try {
-      const keyPath = path.join(__dirname, '..', '..', 'config', 'firebase-key.json');
-      this.logger.debug(`📁 Loading Firebase config from: ${keyPath}`);
+      // Obtener y formatear la clave privada
+      const privateKey = this.configService.get<string>('FIREBASE_PRIVATE_KEY')
+        ?.replace(/\\n/g, '\n')
+        ?.replace(/\n/g, '\n');
 
-      // Leer directamente del archivo .env
-      const privateKey = this.configService.get<string>('FIREBASE_PRIVATE_KEY');
-      const clientEmail = this.configService.get<string>('FIREBASE_CLIENT_EMAIL');
-      const projectId = this.configService.get<string>('FIREBASE_PROJECT_ID');
-
-      if (!privateKey || !clientEmail || !projectId) {
-        throw new Error('Missing Firebase configuration in .env');
-      }
-
-      const serviceAccount = {
-        projectId,
-        clientEmail,
-        private_key: privateKey.replace(/\\n/g, '\n')
+      // Configuración de Firebase
+      const config = {
+        type: 'service_account',
+        projectId: this.configService.get<string>('FIREBASE_PROJECT_ID'),
+        clientEmail: this.configService.get<string>('FIREBASE_CLIENT_EMAIL'),
+        privateKey: privateKey
       };
 
+      // Verificar configuración
+      if (!config.privateKey || !config.clientEmail || !config.projectId) {
+        throw new Error('Missing Firebase configuration');
+      }
+
+      // Inicializar Firebase
       if (!admin.apps.length) {
         const app = admin.initializeApp({
-          credential: admin.credential.cert(serviceAccount as admin.ServiceAccount)
+          credential: admin.credential.cert(config as admin.ServiceAccount)
         });
 
         this.auth = app.auth();
         this.db = app.firestore();
-        this.logger.log('✅ Firebase initialized with env credentials');
       } else {
         this.auth = admin.auth();
         this.db = admin.firestore();
       }
 
-      // Verificar la conexión
+      // Verificar conexión
       await this.auth.listUsers(1);
-      this.logger.log('✅ Firebase connection verified');
+      this.logger.log('✅ Firebase initialized successfully');
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      this.logger.error('❌ Firebase connection error:', errorMessage);
-      if (error instanceof Error && error.stack) {
-        this.logger.error('Stack trace:', error.stack);
-      }
+      this.logger.error('❌ Firebase initialization error:', errorMessage);
       throw error;
     }
   }
