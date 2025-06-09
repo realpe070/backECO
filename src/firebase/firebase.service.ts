@@ -1,8 +1,6 @@
 import { Injectable, Logger, OnModuleInit, UnauthorizedException } from '@nestjs/common';
 import * as admin from 'firebase-admin';
 import { ConfigService } from '@nestjs/config';
-import * as path from 'path';
-import * as fs from 'fs';
 
 @Injectable()
 export class FirebaseService implements OnModuleInit {
@@ -15,21 +13,38 @@ export class FirebaseService implements OnModuleInit {
   async onModuleInit() {
     try {
       // Obtener y formatear la clave privada
-      const privateKey = this.configService.get<string>('FIREBASE_PRIVATE_KEY')
-        ?.replace(/\\n/g, '\n')
-        ?.replace(/\n/g, '\n');
+      let privateKey = this.configService.get<string>('FIREBASE_PRIVATE_KEY');
+
+      // Asegurarse de que la clave privada tenga el formato correcto
+      if (privateKey) {
+        privateKey = privateKey
+          .replace(/\\n/g, '\n')
+          .replace(/\"/g, '')
+          .trim();
+      }
 
       // Configuración de Firebase
       const config = {
         type: 'service_account',
         projectId: this.configService.get<string>('FIREBASE_PROJECT_ID'),
         clientEmail: this.configService.get<string>('FIREBASE_CLIENT_EMAIL'),
-        privateKey: privateKey
+        privateKey
       };
 
-      // Verificar configuración
-      if (!config.privateKey || !config.clientEmail || !config.projectId) {
-        throw new Error('Missing Firebase configuration');
+      // Validación más detallada de la configuración
+      if (!config.privateKey) {
+        throw new Error('Firebase private key is missing');
+      }
+      if (!config.clientEmail) {
+        throw new Error('Firebase client email is missing');
+      }
+      if (!config.projectId) {
+        throw new Error('Firebase project ID is missing');
+      }
+
+      // Verificar formato de la clave privada
+      if (!config.privateKey.includes('BEGIN PRIVATE KEY') || !config.privateKey.includes('END PRIVATE KEY')) {
+        throw new Error('Invalid private key format');
       }
 
       // Inicializar Firebase
@@ -40,17 +55,21 @@ export class FirebaseService implements OnModuleInit {
 
         this.auth = app.auth();
         this.db = app.firestore();
+
+        // Verificar conexión
+        await this.auth.listUsers(1);
+        this.logger.log('✅ Firebase initialized successfully');
+        this.logger.debug(`📦 Connected to project: ${config.projectId}`);
       } else {
         this.auth = admin.auth();
         this.db = admin.firestore();
       }
-
-      // Verificar conexión
-      await this.auth.listUsers(1);
-      this.logger.log('✅ Firebase initialized successfully');
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       this.logger.error('❌ Firebase initialization error:', errorMessage);
+      if (error instanceof Error && error.stack) {
+        this.logger.debug('Stack trace:', error.stack);
+      }
       throw error;
     }
   }
