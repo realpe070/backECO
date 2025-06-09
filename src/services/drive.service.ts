@@ -1,6 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { google } from 'googleapis';
+import { ConfigService } from '@nestjs/config';
 import * as path from 'path';
+import * as fs from 'fs';
 
 interface VideoStatus {
   processed: boolean;
@@ -10,36 +12,59 @@ interface VideoStatus {
 @Injectable()
 export class DriveService {
   private readonly logger = new Logger(DriveService.name);
-  private readonly drive;
-  private readonly auth;
+  private drive;
+  private auth;
   private readonly validFolders = [
     '1iSJMKnKE0oXp3QxlY03nsKQsv1KHMbhc',
     '1PKmm05PopK40UjKrQaBQpiAL8bb2Nx-V'
   ];
 
-  constructor() {
+  constructor(private configService: ConfigService) {
     try {
-      const keyPath = path.join(__dirname, '../../config/ecobreack-5dfe5-firebase-adminsdk-5ltxh-c1ed0666d0.json');
-      const credentials = require(keyPath);
+      // Obtener credenciales desde variables de entorno
+      const privateKey = this.configService.get<string>('FIREBASE_PRIVATE_KEY')?.replace(/\\n/g, '\n');
+      const clientEmail = this.configService.get<string>('FIREBASE_CLIENT_EMAIL');
+      const projectId = this.configService.get<string>('FIREBASE_PROJECT_ID');
+
+      if (!privateKey || !clientEmail || !projectId) {
+        throw new Error('Missing Drive API credentials in environment variables');
+      }
 
       this.auth = new google.auth.GoogleAuth({
-        credentials,
+        credentials: {
+          private_key: privateKey,
+          client_email: clientEmail,
+          project_id: projectId
+        },
         scopes: [
           'https://www.googleapis.com/auth/drive.readonly',
           'https://www.googleapis.com/auth/drive.metadata.readonly'
-        ],
+        ]
       });
 
       this.drive = google.drive({
         version: 'v3',
-        auth: this.auth,
-        retry: true,
+        auth: this.auth
       });
 
       this.logger.log('✅ Google Drive API initialized successfully');
     } catch (error) {
-      this.logger.error('❌ Error initializing Google Drive API:', error);
+      this.logger.error('❌ Error initializing Drive service:', error);
       throw error;
+    }
+  }
+
+  // Método para verificar la conexión
+  async verifyConnection() {
+    try {
+      await this.drive.files.list({
+        pageSize: 1,
+      });
+      this.logger.log('✅ Drive API connection verified successfully');
+      return true;
+    } catch (error) {
+      this.logger.error('❌ Error verifying Drive connection:', error);
+      return false;
     }
   }
 
@@ -81,12 +106,11 @@ export class DriveService {
       const videos = [];
 
       const credentials = await this.auth.getClient();
-      const accessTokenRaw = await credentials.getAccessToken();
-      const accessToken = typeof accessTokenRaw.token === 'string' ? accessTokenRaw.token : null;
+      const accessTokenResponse = await credentials.getAccessToken();
+      const accessToken = accessTokenResponse.token;
 
-      if (!accessToken) {
-        this.logger.error('❌ Access token is missing or invalid.');
-        throw new Error('Could not obtain valid access token.');
+      if (!accessToken || typeof accessToken !== 'string') {
+        throw new Error('Could not obtain valid access token');
       }
 
       for (const folderId of this.validFolders) {
@@ -135,9 +159,10 @@ export class DriveService {
 
       this.logger.debug(`✅ Videos fetched: ${videos.length}`);
       return videos;
-    } catch (error: unknown) {
-      this.logger.error('Error listing folder videos:', error);
-      throw error;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      this.logger.error('Error listing folder videos:', errorMessage);
+      throw new Error(`Failed to list folder videos: ${errorMessage}`);
     }
   }
 

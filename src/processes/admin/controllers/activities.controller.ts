@@ -1,30 +1,39 @@
-import {
-  Controller,
-  Post,
-  Body,
-  UseGuards,
-  HttpException,
-  HttpStatus,
-  Logger,
-} from '@nestjs/common';
+import { Controller, Post, Body, UseGuards, HttpException, HttpStatus, Logger } from '@nestjs/common';
 import { CreateActivityDto } from '../dto/create-activity.dto';
 import { DriveService } from '../../../services/drive.service';
-import { FirebaseAuthGuard } from '../../auth/guards/firebase-auth.guard';
 import { AdminService } from '../services_admin/admin.service';
+import { AdminAuthGuard } from '../guards/admin-auth.guard';
 
 @Controller('admin/activities')
+@UseGuards(AdminAuthGuard)
 export class ActivitiesController {
   private readonly logger = new Logger(ActivitiesController.name);
 
   constructor(
     private readonly driveService: DriveService,
     private readonly adminService: AdminService,
-  ) {}
+  ) { }
 
-  @Post('create')
-  @UseGuards(FirebaseAuthGuard)
+  @Post()
   async createActivity(@Body() createActivityDto: CreateActivityDto) {
     try {
+      this.logger.debug(`Creating activity: ${JSON.stringify(createActivityDto)}`);
+
+      // Validar que todos los campos requeridos estén presentes
+      const requiredFields = [
+        'name', 'description', 'type', 'minTime', 'maxTime',
+        'category', 'videoUrl', 'sensorEnabled', 'duration'
+      ];
+
+      for (const field of requiredFields) {
+        if (!(field in createActivityDto)) {
+          throw new HttpException(
+            `Missing required field: ${field}`,
+            HttpStatus.BAD_REQUEST
+          );
+        }
+      }
+
       const { videoUrl } = createActivityDto;
       this.logger.debug(`Processing video URL: ${videoUrl}`);
 
@@ -71,8 +80,20 @@ export class ActivitiesController {
         );
       }
 
-      // 4. Create activity
-      const activity = await this.adminService.createActivity(createActivityDto);
+      // 4. Create activity with timestamps
+      const now = new Date().toISOString();
+      const activityData: CreateActivityDto = {
+        ...createActivityDto,
+        createdAt: createActivityDto.createdAt || now,
+        updatedAt: now,
+        sensorEnabled: createActivityDto.sensorEnabled ?? false,
+        duration: createActivityDto.duration || 300,
+        minTime: createActivityDto.minTime || 15,
+        maxTime: createActivityDto.maxTime || 30,
+        category: createActivityDto.category || 'Estiramientos Generales'
+      };
+
+      const activity = await this.adminService.createActivity(activityData);
 
       return {
         status: true,

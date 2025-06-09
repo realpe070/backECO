@@ -39,4 +39,4 @@ import { SyncService } from '../../services/sync.service';
   ],
   exports: [AdminService, PlansService, HistoryService, NotificationPlanService, ProcessGroupService, ProcessUploadService, SyncService],
 })
-export class AdminModule {}
+export class AdminModule { }

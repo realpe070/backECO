@@ -1,5 +1,11 @@
-import { IsNotEmpty, IsString, IsNumber, IsBoolean, IsIn, Min, Max } from 'class-validator';
+import { IsNotEmpty, IsString, IsNumber, IsBoolean, IsIn, Min, Max, IsEnum, IsOptional, IsDateString } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
+
+export enum ActivityType {
+  EXERCISE = 'exercise',
+  MEDITATION = 'meditation',
+  BREATHING = 'breathing'
+}
 
 export class CreateActivityDto {
   @ApiProperty({ description: 'Nombre de la actividad' })
@@ -46,8 +52,21 @@ export class CreateActivityDto {
   @IsBoolean()
   sensorEnabled!: boolean;
 
-  @ApiProperty({ description: 'Fecha de creación' })
-  @IsString()
+  @ApiProperty({ description: 'Fecha de creación', required: false })
+  @IsOptional()
+  @IsDateString()
+  createdAt?: string;
+
+  @ApiProperty({ description: 'Fecha de última actualización', required: false })
+  @IsOptional()
+  @IsDateString()
+  updatedAt?: string;
+
   @IsNotEmpty()
-  createdAt!: string;
+  @IsEnum(ActivityType)
+  type!: ActivityType;
+
+  @IsNotEmpty()
+  @IsNumber()
+  duration!: number;
 }

@@ -7,6 +7,7 @@ import { AdminModule } from './processes/admin/admin.module';
 import { HealthController } from './controllers/health.controller';
 import { HealthAppController } from './controllers/health-app.controller';
 import { NetworkInfoController } from './controllers/network-info.controller';
+import { DriveService } from './services/drive.service';
 
 @Module({
   imports: [
@@ -21,6 +22,8 @@ import { NetworkInfoController } from './controllers/network-info.controller';
     HealthAppController,
     NetworkInfoController
   ],
-  providers: [],
+  providers: [
+    DriveService,
+  ],
 })
 export class AppModule { }
