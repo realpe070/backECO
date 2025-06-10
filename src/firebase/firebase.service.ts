@@ -12,45 +12,21 @@ export class FirebaseService implements OnModuleInit {
 
   async onModuleInit() {
     try {
-      // Obtener y formatear la clave privada
-      let privateKey = this.configService.get<string>('FIREBASE_PRIVATE_KEY');
+      // Obtener y decodificar la configuración
+      const base64Config = this.configService.get<string>('FIREBASE_CONFIG_BASE64');
 
-      // Asegurarse de que la clave privada tenga el formato correcto
-      if (privateKey) {
-        privateKey = privateKey
-          .replace(/\\n/g, '\n')
-          .replace(/\"/g, '')
-          .trim();
+      if (!base64Config) {
+        throw new Error('FIREBASE_CONFIG_BASE64 is not set');
       }
 
-      // Configuración de Firebase
-      const config = {
-        type: 'service_account',
-        projectId: this.configService.get<string>('FIREBASE_PROJECT_ID'),
-        clientEmail: this.configService.get<string>('FIREBASE_CLIENT_EMAIL'),
-        privateKey
-      };
-
-      // Validación más detallada de la configuración
-      if (!config.privateKey) {
-        throw new Error('Firebase private key is missing');
-      }
-      if (!config.clientEmail) {
-        throw new Error('Firebase client email is missing');
-      }
-      if (!config.projectId) {
-        throw new Error('Firebase project ID is missing');
-      }
-
-      // Verificar formato de la clave privada
-      if (!config.privateKey.includes('BEGIN PRIVATE KEY') || !config.privateKey.includes('END PRIVATE KEY')) {
-        throw new Error('Invalid private key format');
-      }
+      const serviceAccount = JSON.parse(
+        Buffer.from(base64Config, 'base64').toString('utf8')
+      );
 
       // Inicializar Firebase
       if (!admin.apps.length) {
         const app = admin.initializeApp({
-          credential: admin.credential.cert(config as admin.ServiceAccount)
+          credential: admin.credential.cert(serviceAccount)
         });
 
         this.auth = app.auth();
@@ -59,7 +35,7 @@ export class FirebaseService implements OnModuleInit {
         // Verificar conexión
         await this.auth.listUsers(1);
         this.logger.log('✅ Firebase initialized successfully');
-        this.logger.debug(`📦 Connected to project: ${config.projectId}`);
+        this.logger.debug(`📦 Connected to project: ${serviceAccount.project_id}`);
       } else {
         this.auth = admin.auth();
         this.db = admin.firestore();
