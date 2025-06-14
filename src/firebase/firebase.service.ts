@@ -11,93 +11,42 @@ export class FirebaseService implements OnModuleInit {
   constructor(private configService: ConfigService) { }
 
   private validatePrivateKey(key: string): boolean {
-    return key.includes('-----BEGIN PRIVATE KEY-----') &&
-      key.includes('-----END PRIVATE KEY-----') &&
+    return key.startsWith('-----BEGIN PRIVATE KEY-----') &&
+      key.endsWith('-----END PRIVATE KEY-----') &&
       key.includes('\n');
   }
 
   private normalizePrivateKey(key: string): string {
-    // Asegurarse de que los saltos de línea sean reales
-    let cleanKey = key
-      .replace(/\\n/g, '\n')
-      .split('\\n').join('\n')
-      .trim();
-
-    // Si la clave ya tiene el formato correcto, devolverla tal cual
-    if (this.validatePrivateKey(cleanKey)) {
-      return cleanKey;
+    const cleanKey = key.replace(/\\n/g, '\n').trim();
+    if (!this.validatePrivateKey(cleanKey)) {
+      throw new Error('Invalid private key format');
     }
-
-    // Limpiar la clave de caracteres no deseados
-    cleanKey = cleanKey
-      .replace(/\s+/g, '\n')
-      .trim();
-
-    // Asegurar que tiene los delimitadores correctos
-    if (!cleanKey.startsWith('-----BEGIN PRIVATE KEY-----')) {
-      cleanKey = '-----BEGIN PRIVATE KEY-----\n' + cleanKey;
-    }
-    if (!cleanKey.endsWith('-----END PRIVATE KEY-----')) {
-      cleanKey = cleanKey + '\n-----END PRIVATE KEY-----';
-    }
-
     return cleanKey;
   }
 
   async onModuleInit() {
     try {
       const base64Config = this.configService.get<string>('FIREBASE_CONFIG_BASE64');
-
       if (!base64Config) {
         throw new Error('FIREBASE_CONFIG_BASE64 is not set');
       }
 
-      let serviceAccount;
-      try {
-        // Decodificar el base64 asegurando que no hay caracteres extra
-        const cleanBase64 = base64Config.replace(/\s/g, '');
-        const decodedConfig = Buffer.from(cleanBase64, 'base64').toString('utf8');
-        serviceAccount = JSON.parse(decodedConfig);
+      const decodedConfig = Buffer.from(base64Config, 'base64').toString('utf8');
+      const serviceAccount = JSON.parse(decodedConfig);
 
-        if (!serviceAccount.private_key) {
-          throw new Error('Private key is missing in the service account configuration');
-        }
-
-        // Normalizar la clave privada
-        serviceAccount.private_key = this.normalizePrivateKey(serviceAccount.private_key);
-
-        // Validar que la clave tenga el formato correcto
-        if (!this.validatePrivateKey(serviceAccount.private_key)) {
-          throw new Error('Invalid private key format');
-        }
-
-        this.logger.debug('Private key format validated successfully');
-      } catch (parseError) {
-        this.logger.error('Error processing service account:', parseError);
-        throw new Error('Invalid service account configuration');
-      }
+      serviceAccount.private_key = this.normalizePrivateKey(serviceAccount.private_key);
 
       if (!admin.apps.length) {
         const app = admin.initializeApp({
-          credential: admin.credential.cert(serviceAccount as admin.ServiceAccount)
+          credential: admin.credential.cert(serviceAccount as admin.ServiceAccount),
         });
 
         this.auth = app.auth();
         this.db = app.firestore();
-
-        await this.auth.listUsers(1);
         this.logger.log('✅ Firebase initialized successfully');
-        this.logger.debug(`📦 Connected to project: ${serviceAccount.project_id}`);
-      } else {
-        this.auth = admin.auth();
-        this.db = admin.firestore();
       }
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      this.logger.error('❌ Firebase initialization error:', errorMessage);
-      if (error instanceof Error && error.stack) {
-        this.logger.debug('Stack trace:', error.stack);
-      }
+      this.logger.error('❌ Firebase initialization error:', error);
       throw error;
     }
   }

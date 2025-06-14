@@ -66,6 +66,7 @@ config/temp-firebase.json
 config/*-firebase-adminsdk-*.json
 /config/firebase/*.json
 firebase-config-base64.txt
+config/firebase-real.json
 
 # Excluir el archivo de ejemplo de ser ignorado
 !config/firebase-example.json
