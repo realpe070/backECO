@@ -22,6 +22,8 @@
   <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
   [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
 
+# EcoBreack Backend
+
 ## Description
 
 [Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
@@ -70,6 +72,45 @@ $ mau deploy
 ```
 
 With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+
+## Firebase Configuration
+
+### Setup
+
+1. Create a `config` folder in the root directory if it doesn't exist
+2. Copy `firebase-example.json` to `config/firebase-key.json`
+3. Update the values with your Firebase credentials
+4. Convert the file to base64:
+
+```powershell
+# PowerShell
+$base64 = [Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Content "config/firebase-key.json" -Raw)))
+
+# Or using bash
+base64 -i config/firebase-key.json > firebase-config-base64.txt
+```
+
+5. Add the base64 string to your environment variables in Render:
+   - Go to your service dashboard
+   - Navigate to Environment
+   - Add `FIREBASE_CONFIG_BASE64` with the base64 string as value
+
+### Environment Variables
+
+Required environment variables:
+
+```bash
+PORT=4300
+NODE_ENV=production
+ADMIN_EMAIL=your-admin-email
+FIREBASE_CONFIG_BASE64=your-base64-encoded-config
+```
+
+### Security Notes
+
+- Never commit the actual Firebase credentials to version control
+- Keep your base64 encoded configuration secure
+- Use environment variables for all sensitive data
 
 ## Resources
 
