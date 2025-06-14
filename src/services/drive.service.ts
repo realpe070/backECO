@@ -9,32 +9,53 @@ interface VideoStatus {
   status: 'processing' | 'ready';
 }
 
+// Agregar nueva interfaz para los archivos de Drive
+interface DriveFile {
+  id?: string;
+  name?: string;
+  mimeType?: string;
+  size?: string;
+  videoMediaMetadata?: {
+    durationMillis?: number;
+  };
+  capabilities?: {
+    canDownload?: boolean;
+  };
+  webContentLink?: string;
+}
+
 @Injectable()
 export class DriveService {
   private readonly logger = new Logger(DriveService.name);
-  private drive;
-  private auth;
+  private drive: any;
+  private auth: any;
   private readonly validFolders = [
     '1iSJMKnKE0oXp3QxlY03nsKQsv1KHMbhc',
     '1PKmm05PopK40UjKrQaBQpiAL8bb2Nx-V'
   ];
 
   constructor(private configService: ConfigService) {
-    try {
-      // Obtener credenciales desde variables de entorno
-      const privateKey = this.configService.get<string>('FIREBASE_PRIVATE_KEY')?.replace(/\\n/g, '\n');
-      const clientEmail = this.configService.get<string>('FIREBASE_CLIENT_EMAIL');
-      const projectId = this.configService.get<string>('FIREBASE_PROJECT_ID');
+    this.initializeDrive();
+  }
 
-      if (!privateKey || !clientEmail || !projectId) {
-        throw new Error('Missing Drive API credentials in environment variables');
+  private async initializeDrive() {
+    try {
+      // Obtener credenciales desde las variables de entorno de Firebase
+      const base64Config = this.configService.get<string>('FIREBASE_CONFIG_BASE64');
+
+      if (!base64Config) {
+        throw new Error('FIREBASE_CONFIG_BASE64 is not set');
       }
+
+      const serviceAccount = JSON.parse(
+        Buffer.from(base64Config, 'base64').toString('utf8')
+      );
 
       this.auth = new google.auth.GoogleAuth({
         credentials: {
-          private_key: privateKey,
-          client_email: clientEmail,
-          project_id: projectId
+          private_key: serviceAccount.private_key,
+          client_email: serviceAccount.client_email,
+          project_id: serviceAccount.project_id
         },
         scopes: [
           'https://www.googleapis.com/auth/drive.readonly',
@@ -47,16 +68,29 @@ export class DriveService {
         auth: this.auth
       });
 
+      if (!this.drive || !this.auth) {
+        throw new Error('Drive or Auth not properly initialized');
+      }
+
       this.logger.log('✅ Google Drive API initialized successfully');
     } catch (error) {
-      this.logger.error('❌ Error initializing Drive service:', error);
-      throw error;
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      this.logger.error('❌ Error initializing Drive service:', errorMessage);
+      if (error instanceof Error && error.stack) {
+        this.logger.debug('Stack trace:', error.stack);
+      }
+      // No lanzamos el error aquí para permitir la inicialización lazy
+      this.logger.warn('Drive service will attempt to initialize on first use');
     }
   }
 
   // Método para verificar la conexión
   async verifyConnection() {
     try {
+      if (!this.drive?.files) {
+        await this.initializeDrive();
+      }
+
       await this.drive.files.list({
         pageSize: 1,
       });
@@ -90,11 +124,15 @@ export class DriveService {
 
   async getFileInfo(fileId: string) {
     try {
+      if (!this.drive?.files) {
+        await this.initializeDrive();
+      }
+
       const response = await this.drive.files.get({
         fileId,
         fields: 'id, name, mimeType, parents',
       });
-      return response.data;
+      return response?.data || null;
     } catch (error) {
       this.logger.error(`Error getting file info for ${fileId}:`, error);
       throw new Error('Error accessing Drive file');
@@ -103,11 +141,15 @@ export class DriveService {
 
   async listFolderVideos() {
     try {
+      if (!this.drive?.files || !this.auth) {
+        await this.initializeDrive();
+      }
+
       const videos = [];
 
       const credentials = await this.auth.getClient();
-      const accessTokenResponse = await credentials.getAccessToken();
-      const accessToken = accessTokenResponse.token;
+      const accessTokenResponse = await credentials?.getAccessToken();
+      const accessToken = accessTokenResponse?.token;
 
       if (!accessToken || typeof accessToken !== 'string') {
         throw new Error('Could not obtain valid access token');
@@ -126,7 +168,7 @@ export class DriveService {
 
         if (response.data.files && response.data.files.length > 0) {
           const processedVideos = await Promise.all(
-            response.data.files.map(async (file) => {
+            response.data.files.map(async (file: DriveFile) => {
               try {
                 if (!file.id) return null;
 
@@ -168,14 +210,23 @@ export class DriveService {
 
   async checkVideoStatus(fileId: string): Promise<VideoStatus> {
     try {
+      if (!this.drive?.files) {
+        await this.initializeDrive();
+      }
+
       const response = await this.drive.files.get({
         fileId,
         fields: 'id, name, mimeType, videoMediaMetadata, capabilities',
         supportsAllDrives: true
       });
 
-      const canDownload = response.data.capabilities?.canDownload ?? false;
-      const hasVideoMetadata = !!response.data.videoMediaMetadata;
+      const data = response?.data;
+      if (!data) {
+        throw new Error('No data received from Drive API');
+      }
+
+      const canDownload = data.capabilities?.canDownload ?? false;
+      const hasVideoMetadata = !!data.videoMediaMetadata;
       const isProcessed = canDownload && hasVideoMetadata;
 
       return {
@@ -190,6 +241,10 @@ export class DriveService {
 
   private async getAccessToken(fileId: string): Promise<string> {
     try {
+      if (!this.drive?.files) {
+        await this.initializeDrive();
+      }
+
       const response = await this.drive.files.get({
         fileId,
         fields: 'id',
@@ -199,8 +254,12 @@ export class DriveService {
         responseType: 'stream'
       });
 
-      const token = (response.config.headers?.Authorization as string)?.replace('Bearer ', '') || '';
-      return token;
+      const authHeader = response?.config?.headers?.Authorization;
+      if (!authHeader || typeof authHeader !== 'string') {
+        throw new Error('No valid authorization header found');
+      }
+
+      return authHeader.replace('Bearer ', '');
     } catch (error) {
       this.logger.error(`Error getting access token for ${fileId}:`, error);
       throw error;
