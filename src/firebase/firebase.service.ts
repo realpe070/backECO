@@ -10,13 +10,33 @@ export class FirebaseService implements OnModuleInit {
 
   constructor(private configService: ConfigService) { }
 
+  private validatePrivateKey(key: string): boolean {
+    return key.includes('-----BEGIN PRIVATE KEY-----') &&
+      key.includes('-----END PRIVATE KEY-----') &&
+      key.includes('\n');
+  }
+
   private normalizePrivateKey(key: string): string {
-    // Asegurarse de que la clave tenga el formato correcto para RS256
-    if (!key.includes('-----BEGIN PRIVATE KEY-----')) {
-      return `-----BEGIN PRIVATE KEY-----\n${key}\n-----END PRIVATE KEY-----`;
+    // Si la clave ya tiene el formato correcto, devolverla tal cual
+    if (this.validatePrivateKey(key)) {
+      return key;
     }
-    // Asegurarse de que los saltos de línea estén correctos
-    return key.replace(/\\n/g, '\n');
+
+    // Limpiar la clave de caracteres no deseados
+    let cleanKey = key
+      .replace(/\\n/g, '\n')
+      .replace(/\s+/g, '\n')
+      .trim();
+
+    // Asegurar que tiene los delimitadores correctos
+    if (!cleanKey.startsWith('-----BEGIN PRIVATE KEY-----')) {
+      cleanKey = '-----BEGIN PRIVATE KEY-----\n' + cleanKey;
+    }
+    if (!cleanKey.endsWith('-----END PRIVATE KEY-----')) {
+      cleanKey = cleanKey + '\n-----END PRIVATE KEY-----';
+    }
+
+    return cleanKey;
   }
 
   async onModuleInit() {
@@ -29,19 +49,26 @@ export class FirebaseService implements OnModuleInit {
 
       let serviceAccount;
       try {
-        serviceAccount = JSON.parse(
-          Buffer.from(base64Config, 'base64').toString('utf8')
-        );
+        // Decodificar el base64 asegurando que no hay caracteres extra
+        const cleanBase64 = base64Config.replace(/\s/g, '');
+        const decodedConfig = Buffer.from(cleanBase64, 'base64').toString('utf8');
+        serviceAccount = JSON.parse(decodedConfig);
 
-        // Normalizar la clave privada
-        if (serviceAccount.private_key) {
-          serviceAccount.private_key = this.normalizePrivateKey(serviceAccount.private_key);
-          this.logger.debug('Private key normalized successfully');
-        } else {
+        if (!serviceAccount.private_key) {
           throw new Error('Private key is missing in the service account configuration');
         }
+
+        // Normalizar la clave privada
+        serviceAccount.private_key = this.normalizePrivateKey(serviceAccount.private_key);
+
+        // Validar que la clave tenga el formato correcto
+        if (!this.validatePrivateKey(serviceAccount.private_key)) {
+          throw new Error('Invalid private key format');
+        }
+
+        this.logger.debug('Private key format validated successfully');
       } catch (parseError) {
-        this.logger.error('Error parsing service account:', parseError);
+        this.logger.error('Error processing service account:', parseError);
         throw new Error('Invalid service account configuration');
       }
 
@@ -53,7 +80,6 @@ export class FirebaseService implements OnModuleInit {
         this.auth = app.auth();
         this.db = app.firestore();
 
-        // Verificar la conexión
         await this.auth.listUsers(1);
         this.logger.log('✅ Firebase initialized successfully');
         this.logger.debug(`📦 Connected to project: ${serviceAccount.project_id}`);
