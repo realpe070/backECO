@@ -10,34 +10,50 @@ export class FirebaseService implements OnModuleInit {
 
   constructor(private configService: ConfigService) { }
 
+  private normalizePrivateKey(key: string): string {
+    // Asegurarse de que la clave tenga el formato correcto para RS256
+    if (!key.includes('-----BEGIN PRIVATE KEY-----')) {
+      return `-----BEGIN PRIVATE KEY-----\n${key}\n-----END PRIVATE KEY-----`;
+    }
+    // Asegurarse de que los saltos de línea estén correctos
+    return key.replace(/\\n/g, '\n');
+  }
+
   async onModuleInit() {
     try {
-      // Obtener y decodificar la configuración
       const base64Config = this.configService.get<string>('FIREBASE_CONFIG_BASE64');
 
       if (!base64Config) {
         throw new Error('FIREBASE_CONFIG_BASE64 is not set');
       }
 
-      const serviceAccount = JSON.parse(
-        Buffer.from(base64Config, 'base64').toString('utf8')
-      );
+      let serviceAccount;
+      try {
+        serviceAccount = JSON.parse(
+          Buffer.from(base64Config, 'base64').toString('utf8')
+        );
 
-      // Asegurarse de que la clave privada tenga el formato correcto
-      if (serviceAccount.private_key.includes('\\n')) {
-        serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, '\n');
+        // Normalizar la clave privada
+        if (serviceAccount.private_key) {
+          serviceAccount.private_key = this.normalizePrivateKey(serviceAccount.private_key);
+          this.logger.debug('Private key normalized successfully');
+        } else {
+          throw new Error('Private key is missing in the service account configuration');
+        }
+      } catch (parseError) {
+        this.logger.error('Error parsing service account:', parseError);
+        throw new Error('Invalid service account configuration');
       }
 
-      // Inicializar Firebase
       if (!admin.apps.length) {
         const app = admin.initializeApp({
-          credential: admin.credential.cert(serviceAccount)
+          credential: admin.credential.cert(serviceAccount as admin.ServiceAccount)
         });
 
         this.auth = app.auth();
         this.db = app.firestore();
 
-        // Verificar conexión
+        // Verificar la conexión
         await this.auth.listUsers(1);
         this.logger.log('✅ Firebase initialized successfully');
         this.logger.debug(`📦 Connected to project: ${serviceAccount.project_id}`);
