@@ -23,6 +23,11 @@ export class FirebaseService implements OnModuleInit {
         Buffer.from(base64Config, 'base64').toString('utf8')
       );
 
+      // Asegurarse de que la clave privada tenga el formato correcto
+      if (serviceAccount.private_key.includes('\\n')) {
+        serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, '\n');
+      }
+
       // Inicializar Firebase
       if (!admin.apps.length) {
         const app = admin.initializeApp({
