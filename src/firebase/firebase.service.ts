@@ -17,14 +17,19 @@ export class FirebaseService implements OnModuleInit {
   }
 
   private normalizePrivateKey(key: string): string {
+    // Asegurarse de que los saltos de línea sean reales
+    let cleanKey = key
+      .replace(/\\n/g, '\n')
+      .split('\\n').join('\n')
+      .trim();
+
     // Si la clave ya tiene el formato correcto, devolverla tal cual
-    if (this.validatePrivateKey(key)) {
-      return key;
+    if (this.validatePrivateKey(cleanKey)) {
+      return cleanKey;
     }
 
     // Limpiar la clave de caracteres no deseados
-    let cleanKey = key
-      .replace(/\\n/g, '\n')
+    cleanKey = cleanKey
       .replace(/\s+/g, '\n')
       .trim();
 
