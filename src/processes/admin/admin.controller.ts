@@ -21,7 +21,7 @@ export class AdminController {
   constructor(
     private readonly adminService: AdminService,
     private readonly driveService: DriveService, // Inject DriveService
-  ) {}
+  ) { }
 
   @UseGuards() // Disable guards for this route
   @Post('login')
@@ -75,6 +75,14 @@ export class AdminController {
     }
   }
 
+  @Get('health')
+  getHealth() {
+    return {
+      status: true,
+      message: 'Admin API is healthy',
+    };
+  }
+
   @Get('users')
   @ApiResponse({ status: 200, description: 'Lista de usuarios obtenida' })
   async getUsers(@Req() request: Request) {
@@ -83,9 +91,9 @@ export class AdminController {
       this.logger.debug(`Headers recibidos: ${JSON.stringify(request.headers)}`);
 
       const users = await this.adminService.getFirebaseUsers();
-      
+
       this.logger.debug(`✅ ${users.length} usuarios encontrados`);
-      
+
       return {
         status: true,
         message: 'Usuarios obtenidos correctamente',
