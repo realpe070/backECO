@@ -62,12 +62,10 @@ src/firebase/firebase-key.json
 config/firebase-key.json
 config/firebase-config.json
 config/*-firebase-adminsdk-*.json
-
-# Firebase configuration files
-/config/firebase-clean.json
-/config/temp-firebase.json
-/config/*.json
 /config/firebase/*.json
+
+# Excluir el archivo de ejemplo de ser ignorado
+!config/firebase-example.json
 
 # Additional Firebase specific ignores
 .firebase/
