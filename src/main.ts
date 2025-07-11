@@ -61,7 +61,14 @@ async function bootstrap() {
     const app = await NestFactory.create(AppModule, {
       logger: ['error', 'warn', 'debug', 'log', 'verbose'],
     });
+
+    // Verificar las variables de entorno críticas
     const configService = app.get(ConfigService);
+    const firebaseConfig = configService.get('FIREBASE_CONFIG_BASE64');
+    if (!firebaseConfig) {
+      throw new Error('FIREBASE_CONFIG_BASE64 is not set');
+    }
+
     const networkIP = getNetworkInfo();
     const logger = new Logger('Bootstrap');
     const port = configService.get('PORT') || 4300;
@@ -153,7 +160,7 @@ async function bootstrap() {
     `);
 
     await app.listen(port, '0.0.0.0');
-    logger.log(`🚀 Server running on port ${port} in ${environment} mode`);
+    logger.log(`🚀 Server running on port ${port} with Firebase initialized`);
   } catch (error) {
     console.error('❌ Server startup error:', error);
     process.exit(1);

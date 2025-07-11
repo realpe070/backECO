@@ -28,14 +28,21 @@ export class FirebaseService implements OnModuleInit {
     try {
       const base64Config = this.configService.get<string>('FIREBASE_CONFIG_BASE64');
       if (!base64Config) {
-        throw new Error('FIREBASE_CONFIG_BASE64 is not set');
+        throw new Error('FIREBASE_CONFIG_BASE64 environment variable is not set');
       }
 
+      // Decodificar y parsear la configuración
       const decodedConfig = Buffer.from(base64Config, 'base64').toString('utf8');
       const serviceAccount = JSON.parse(decodedConfig);
 
       serviceAccount.private_key = this.normalizePrivateKey(serviceAccount.private_key);
 
+      // Verificar campos críticos
+      if (!serviceAccount.project_id || !serviceAccount.private_key || !serviceAccount.client_email) {
+        throw new Error('Invalid Firebase configuration: missing required fields');
+      }
+
+      // Inicializar Firebase solo si no está ya inicializado
       if (!admin.apps.length) {
         const app = admin.initializeApp({
           credential: admin.credential.cert(serviceAccount as admin.ServiceAccount),
@@ -43,7 +50,12 @@ export class FirebaseService implements OnModuleInit {
 
         this.auth = app.auth();
         this.db = app.firestore();
-        this.logger.log('✅ Firebase initialized successfully');
+
+        this.logger.log(`✅ Firebase initialized successfully for project: ${serviceAccount.project_id}`);
+
+        // Verificar la conexión intentando listar un usuario
+        await this.auth.listUsers(1);
+        this.logger.log('✅ Firebase Auth connection verified');
       }
     } catch (error) {
       this.logger.error('❌ Firebase initialization error:', error);

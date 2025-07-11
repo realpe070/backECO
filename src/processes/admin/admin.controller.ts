@@ -87,24 +87,39 @@ export class AdminController {
   @ApiResponse({ status: 200, description: 'Lista de usuarios obtenida' })
   async getUsers(@Req() request: Request) {
     try {
-      this.logger.log('📋 Obteniendo lista de usuarios...');
-      this.logger.debug(`Headers recibidos: ${JSON.stringify(request.headers)}`);
+      this.logger.debug('🔍 Getting users list...');
+      this.logger.debug(`Headers: ${JSON.stringify(request.headers)}`);
 
       const users = await this.adminService.getFirebaseUsers();
 
-      this.logger.debug(`✅ ${users.length} usuarios encontrados`);
+      if (!users || users.length === 0) {
+        this.logger.warn('No users found');
+        return {
+          status: true,
+          message: 'No users found',
+          data: [],
+          timestamp: new Date().toISOString()
+        };
+      }
 
+      this.logger.debug(`✅ Found ${users.length} users`);
       return {
         status: true,
-        message: 'Usuarios obtenidos correctamente',
+        message: 'Users retrieved successfully',
         data: users,
         timestamp: new Date().toISOString()
       };
     } catch (error) {
       this.logger.error('❌ Error getting users:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      const errorDetails = error instanceof Error ? error.stack : '';
+
+      this.logger.error(`Detailed error: ${errorDetails}`);
+
       throw new HttpException({
         status: false,
-        message: error instanceof Error ? error.message : 'Error getting users',
+        message: 'Error getting users from Firebase',
+        error: errorMessage
       }, HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }
