@@ -60,49 +60,70 @@ export class AdminService {
 
   async getFirebaseUsers(): Promise<UserResponseDto[]> {
     try {
-      this.logger.debug('Obteniendo usuarios de Firebase');
-      
+      this.logger.debug('🔍 Iniciando obtención de usuarios de Firebase...');
+
       const auth = this.firebaseService.getAuth();
-      const { users } = await auth.listUsers();
+      if (!auth) {
+        this.logger.error('❌ Firebase Auth no está inicializado');
+        throw new Error('Firebase Auth no está inicializado');
+      }
+
+      if (typeof auth.listUsers !== 'function') {
+        this.logger.error('🔥 Firebase Auth no tiene el método listUsers');
+        throw new Error('Firebase Auth no está correctamente configurado');
+      }
+
+      this.logger.debug('📨 Llamando a auth.listUsers()...');
+      const listUsersResult = await auth.listUsers();
+
+      if (!listUsersResult || !listUsersResult.users) {
+        this.logger.error('❌ listUsers() no devolvió un resultado válido');
+        throw new Error('No se pudo obtener la lista de usuarios');
+      }
+
+      this.logger.debug(`✅ Se encontraron ${listUsersResult.users.length} usuarios`);
+
       const db = this.firebaseService.getFirestore();
-      
-      const usersData = await Promise.all(users.map(async (user) => {
+
+      const usersData = await Promise.all(listUsersResult.users.map(async (user) => {
         try {
           const userDoc = await db.collection('users').doc(user.uid).get();
           const userData = userDoc.data() || {};
 
-          return {
+          const userResponse: UserResponseDto = {
             uid: user.uid,
             email: user.email || null,
             displayName: user.displayName || userData.name || null,
             photoURL: user.photoURL || null,
-            creationTime: user.metadata.creationTime || '',
-            lastSignInTime: user.metadata.lastSignInTime || '',
-            status: user.disabled ? 'disabled' : 'active',
-            name: userData.name || null,
-            lastName: userData.lastName || null,
-            gender: userData.gender || null,
-            avatarColor: userData.avatarColor || null,
-            createdAt: userData.createdAt ? userData.createdAt.toDate().toISOString() : null
-          } as UserResponseDto;
+            disabled: user.disabled,
+            metadata: {
+              creationTime: user.metadata.creationTime,
+              lastSignInTime: user.metadata.lastSignInTime
+            },
+            creationTime: user.metadata.creationTime,
+            lastSignInTime: user.metadata.lastSignInTime,
+            status: user.disabled ? 'disabled' : 'active'
+          };
+
+          return userResponse;
         } catch (error) {
           this.logger.error(`Error obteniendo datos de usuario ${user.uid}:`, error);
           return null;
         }
       }));
-      
+
       return usersData.filter((user): user is UserResponseDto => user !== null);
-      
-    } catch (error: unknown) {
-      this.logger.error('Error obteniendo usuarios de Firebase:', error);
-      throw new Error('Error al obtener usuarios de Firebase');
+
+    } catch (error) {
+      this.logger.error('❌ Error obteniendo usuarios de Firebase:', error);
+      throw new Error(`Error al obtener usuarios de Firebase: ${error instanceof Error ? error.message : 'Error desconocido'}`);
     }
   }
 
   async getUserStats(userId: string): Promise<UserStats> {
     try {
       this.logger.debug(`Obteniendo estadísticas del usuario ${userId}`);
-      
+
       const db = this.firebaseService.getFirestore();
       const userDoc = await db.collection('users').doc(userId).get();
 
@@ -116,7 +137,7 @@ export class AdminService {
       }
 
       const userData = userDoc.data() || {};
-      
+
       const stats = {
         activities_done: Number(userData.activities_done) || 0,
         total_activities: Number(userData.total_activities) || 0,
@@ -125,7 +146,7 @@ export class AdminService {
 
       this.logger.debug('Estadísticas obtenidas:', stats);
       return stats;
-      
+
     } catch (error: unknown) {
       this.logger.error(`Error obteniendo estadísticas para usuario ${userId}:`, error);
       throw new HttpException({
@@ -182,18 +203,18 @@ export class AdminService {
   async deleteActivity(activityId: string): Promise<void> {
     try {
       this.logger.debug(`Eliminando actividad: ${activityId}`);
-      
+
       const db = this.firebaseService.getFirestore();
       const activityRef = db.collection('activities').doc(activityId);
-      
+
       const doc = await activityRef.get();
       if (!doc.exists) {
         throw new NotFoundException('Actividad no encontrada');
       }
-      
+
       await activityRef.delete();
       this.logger.debug('Actividad eliminada exitosamente');
-      
+
     } catch (error) {
       this.logger.error('Error eliminando actividad:', error);
       throw error;
@@ -204,7 +225,7 @@ export class AdminService {
     try {
       const db = this.firebaseService.getFirestore();
       const snapshot = await db.collection('activities').get();
-      
+
       return snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()

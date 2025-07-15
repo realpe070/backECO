@@ -26,9 +26,11 @@ export class FirebaseService implements OnModuleInit {
 
   async onModuleInit() {
     try {
+      this.logger.log('🔄 Inicializando Firebase...');
+
       const base64Config = this.configService.get<string>('FIREBASE_CONFIG_BASE64');
       if (!base64Config) {
-        throw new Error('FIREBASE_CONFIG_BASE64 is not set');
+        throw new Error('FIREBASE_CONFIG_BASE64 no está configurado');
       }
 
       const decodedConfig = Buffer.from(base64Config, 'base64').toString('utf8');
@@ -37,23 +39,35 @@ export class FirebaseService implements OnModuleInit {
       serviceAccount.private_key = this.normalizePrivateKey(serviceAccount.private_key);
 
       if (!admin.apps.length) {
+        this.logger.debug('📦 Creando nueva aplicación Firebase...');
         const app = admin.initializeApp({
           credential: admin.credential.cert(serviceAccount as admin.ServiceAccount),
         });
 
         this.auth = app.auth();
         this.db = app.firestore();
-        this.logger.log('✅ Firebase initialized successfully');
+
+        // Verificar que auth se inicializó correctamente
+        if (!this.auth || typeof this.auth.listUsers !== 'function') {
+          throw new Error('Firebase Auth no se inicializó correctamente');
+        }
+
+        this.logger.log('✅ Firebase inicializado correctamente');
+
+        // Verificar conectividad
+        await this.auth.listUsers(1);
+        this.logger.log('✅ Conexión a Firebase Auth verificada');
       }
     } catch (error) {
-      this.logger.error('❌ Firebase initialization error:', error);
+      this.logger.error('❌ Error inicializando Firebase:', error);
       throw error;
     }
   }
 
   getAuth(): admin.auth.Auth {
-    if (!this.auth) {
-      throw new Error('Firebase auth not initialized');
+    if (!this.auth || typeof this.auth.listUsers !== 'function') {
+      this.logger.error('❌ Firebase Auth no está inicializado correctamente');
+      throw new Error('Firebase Auth no está inicializado o configurado correctamente');
     }
     return this.auth;
   }
