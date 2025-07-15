@@ -10,6 +10,20 @@ export class FirebaseService implements OnModuleInit {
 
   constructor(private configService: ConfigService) { }
 
+  private formatPrivateKey(key: string): string {
+    // Remove all whitespace and newlines
+    const cleanKey = key.replace(/\s/g, '');
+
+    // Add proper newlines and format
+    const formatted = [
+      '-----BEGIN PRIVATE KEY-----',
+      ...cleanKey.match(/.{1,64}/g) || [],
+      '-----END PRIVATE KEY-----'
+    ].join('\n');
+
+    return formatted;
+  }
+
   async onModuleInit() {
     try {
       this.logger.log('🔄 Inicializando Firebase...');
@@ -19,18 +33,33 @@ export class FirebaseService implements OnModuleInit {
         throw new Error('FIREBASE_CONFIG_BASE64 no está configurado');
       }
 
-      let decodedConfig: string;
-      try {
-        decodedConfig = Buffer.from(base64Config, 'base64').toString('utf8');
-      } catch (error) {
-        throw new Error('Error decodificando FIREBASE_CONFIG_BASE64');
-      }
-
       let serviceAccount: admin.ServiceAccount;
       try {
-        serviceAccount = JSON.parse(decodedConfig);
+        const decodedConfig = Buffer.from(base64Config, 'base64').toString('utf8');
+        const parsedConfig = JSON.parse(decodedConfig);
+
+        // Asegúrate de que la clave privada tenga el formato correcto
+        if (parsedConfig.private_key) {
+          parsedConfig.private_key = this.formatPrivateKey(parsedConfig.private_key);
+        }
+
+        serviceAccount = {
+          projectId: parsedConfig.project_id,
+          clientEmail: parsedConfig.client_email,
+          privateKey: parsedConfig.private_key
+        };
+
+        // Log para debugging
+        this.logger.debug('Service Account Structure:', {
+          projectId: serviceAccount.projectId,
+          clientEmail: serviceAccount.clientEmail,
+          privateKeyLength: serviceAccount.privateKey?.length,
+          hasPrivateKey: !!serviceAccount.privateKey
+        });
+
       } catch (error) {
-        throw new Error('FIREBASE_CONFIG_BASE64 no contiene un JSON válido');
+        this.logger.error('Error parsing config:', error);
+        throw new Error('Error en el formato de configuración');
       }
 
       if (!admin.apps.length) {
