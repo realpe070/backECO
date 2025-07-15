@@ -11,17 +11,8 @@ export class FirebaseService implements OnModuleInit {
   constructor(private configService: ConfigService) { }
 
   private formatPrivateKey(key: string): string {
-    // Remove all whitespace and newlines
-    const cleanKey = key.replace(/\s/g, '');
-
-    // Add proper newlines and format
-    const formatted = [
-      '-----BEGIN PRIVATE KEY-----',
-      ...cleanKey.match(/.{1,64}/g) || [],
-      '-----END PRIVATE KEY-----'
-    ].join('\n');
-
-    return formatted;
+    // Convertir los saltos de línea escapados en saltos de línea reales
+    return key.replace(/\\n/g, "\n");
   }
 
   async onModuleInit() {
@@ -38,7 +29,7 @@ export class FirebaseService implements OnModuleInit {
         const decodedConfig = Buffer.from(base64Config, 'base64').toString('utf8');
         const parsedConfig = JSON.parse(decodedConfig);
 
-        // Asegúrate de que la clave privada tenga el formato correcto
+        // Asegurarse de que la clave tenga el formato PEM correcto
         if (parsedConfig.private_key) {
           parsedConfig.private_key = this.formatPrivateKey(parsedConfig.private_key);
         }
@@ -49,7 +40,7 @@ export class FirebaseService implements OnModuleInit {
           privateKey: parsedConfig.private_key
         };
 
-        // Log para debugging
+        // Debug para ver la estructura
         this.logger.debug('Service Account Structure:', {
           projectId: serviceAccount.projectId,
           clientEmail: serviceAccount.clientEmail,
