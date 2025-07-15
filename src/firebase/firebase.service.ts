@@ -10,33 +10,25 @@ export class FirebaseService implements OnModuleInit {
 
   constructor(private configService: ConfigService) { }
 
-  private validateAndFormatPrivateKey(serviceAccount: any): void {
-    if (!serviceAccount.private_key) {
-      throw new Error('private_key is missing from service account');
+  private validateAndFormatPrivateKey(key: string): string {
+    // 1. Limpiar la clave
+    let cleanKey = key.replace(/\\n/g, '\n').trim();
+
+    // 2. Asegurar el formato correcto
+    if (!cleanKey.includes('-----BEGIN PRIVATE KEY-----')) {
+      cleanKey = '-----BEGIN PRIVATE KEY-----\n' + cleanKey;
+    }
+    if (!cleanKey.includes('-----END PRIVATE KEY-----')) {
+      cleanKey = cleanKey + '\n-----END PRIVATE KEY-----';
     }
 
-    // Asegurar formato correcto de la clave privada
-    if (typeof serviceAccount.private_key === 'string') {
-      // Reemplazar todos los \\n con \n reales
-      serviceAccount.private_key = serviceAccount.private_key
-        .replace(/\\n/g, '\n')
-        .replace(/\s+/g, '\n')
-        .trim();
-
-      // Asegurar formato PEM correcto
-      if (!serviceAccount.private_key.startsWith('-----BEGIN PRIVATE KEY-----')) {
-        serviceAccount.private_key = `-----BEGIN PRIVATE KEY-----\n${serviceAccount.private_key}`;
-      }
-      if (!serviceAccount.private_key.endsWith('-----END PRIVATE KEY-----')) {
-        serviceAccount.private_key = `${serviceAccount.private_key}\n-----END PRIVATE KEY-----`;
-      }
+    // 3. Verificar formato PEM
+    const pemRegex = /^-----BEGIN PRIVATE KEY-----\n[\s\S]+\n-----END PRIVATE KEY-----\n?$/;
+    if (!pemRegex.test(cleanKey)) {
+      throw new Error('Invalid PEM format after normalization');
     }
 
-    // Verificación final
-    if (!serviceAccount.private_key.includes('-----BEGIN PRIVATE KEY-----') ||
-      !serviceAccount.private_key.includes('-----END PRIVATE KEY-----')) {
-      throw new Error('Invalid private key format after normalization');
-    }
+    return cleanKey;
   }
 
   async onModuleInit() {
@@ -58,31 +50,35 @@ export class FirebaseService implements OnModuleInit {
       let serviceAccount: any;
       try {
         serviceAccount = JSON.parse(decodedConfig);
-      } catch (error) {
-        throw new Error('FIREBASE_CONFIG_BASE64 no contiene un JSON válido');
-      }
 
-      this.validateAndFormatPrivateKey(serviceAccount);
+        // Formatear la clave privada antes de usarla
+        if (serviceAccount.private_key) {
+          serviceAccount.private_key = this.validateAndFormatPrivateKey(serviceAccount.private_key);
+        } else {
+          throw new Error('private_key is missing from service account');
+        }
 
-      if (!admin.apps.length) {
-        const app = admin.initializeApp({
-          credential: admin.credential.cert(serviceAccount as admin.ServiceAccount)
-        });
+        if (!admin.apps.length) {
+          const app = admin.initializeApp({
+            credential: admin.credential.cert(serviceAccount)
+          });
 
-        this.auth = app.auth();
-        this.db = app.firestore();
+          this.auth = app.auth();
+          this.db = app.firestore();
 
-        // Verificar conexión con una operación simple
-        await this.auth.getUser('test-connection')
-          .catch(error => {
-            // Ignoramos el error específico de usuario no encontrado
-            // ya que solo queremos verificar que la conexión funciona
+          // Verificación simple
+          await this.auth.getUser('test-connection').catch(error => {
             if (error.code !== 'auth/user-not-found') {
               throw error;
             }
           });
 
-        this.logger.log('✅ Conexión a Firebase verificada');
+          this.logger.log('✅ Firebase inicializado correctamente');
+        }
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+        this.logger.error('Error parsing service account:', errorMessage);
+        throw error;
       }
     } catch (error) {
       this.logger.error('❌ Error inicializando Firebase:', error);
