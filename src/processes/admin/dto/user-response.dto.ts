@@ -3,9 +3,14 @@ export interface UserResponseDto {
   email: string | null;
   displayName: string | null;
   photoURL: string | null;
-  creationTime: string;
-  lastSignInTime: string;
-  status: 'active' | 'disabled';
+  disabled: boolean;  // Añadida propiedad disabled
+  metadata: {
+    creationTime: string;
+    lastSignInTime: string;
+  };
+  creationTime?: string;
+  lastSignInTime?: string;
+  status?: string;
   // Campos adicionales específicos
   name?: string | null;
   lastName?: string | null;
