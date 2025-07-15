@@ -14,22 +14,28 @@ export class FirebaseService implements OnModuleInit {
     try {
       this.logger.log('🔄 Inicializando Firebase...');
 
-      const serviceAccount = {
-        type: "service_account",
-        project_id: this.configService.get('FIREBASE_PROJECT_ID'),
-        private_key_id: this.configService.get('FIREBASE_PRIVATE_KEY_ID'),
-        private_key: this.configService.get('FIREBASE_PRIVATE_KEY'),
-        client_email: this.configService.get('FIREBASE_CLIENT_EMAIL'),
-        client_id: this.configService.get('FIREBASE_CLIENT_ID'),
-        auth_uri: "https://accounts.google.com/o/oauth2/auth",
-        token_uri: "https://oauth2.googleapis.com/token",
-        auth_provider_x509_cert_url: "https://www.googleapis.com/oauth2/v1/certs",
-        client_x509_cert_url: this.configService.get('FIREBASE_CLIENT_CERT_URL'),
-      };
+      const base64Config = this.configService.get<string>('FIREBASE_CONFIG_BASE64');
+      if (!base64Config) {
+        throw new Error('FIREBASE_CONFIG_BASE64 no está configurado');
+      }
+
+      let decodedConfig: string;
+      try {
+        decodedConfig = Buffer.from(base64Config, 'base64').toString('utf8');
+      } catch (error) {
+        throw new Error('Error decodificando FIREBASE_CONFIG_BASE64');
+      }
+
+      let serviceAccount: admin.ServiceAccount;
+      try {
+        serviceAccount = JSON.parse(decodedConfig);
+      } catch (error) {
+        throw new Error('FIREBASE_CONFIG_BASE64 no contiene un JSON válido');
+      }
 
       if (!admin.apps.length) {
         const app = admin.initializeApp({
-          credential: admin.credential.cert(serviceAccount as admin.ServiceAccount)
+          credential: admin.credential.cert(serviceAccount)
         });
 
         this.auth = app.auth();
@@ -37,7 +43,6 @@ export class FirebaseService implements OnModuleInit {
 
         this.logger.log('✅ Firebase inicializado correctamente');
       }
-
     } catch (error) {
       this.logger.error('❌ Error inicializando Firebase:', error);
       throw error;
