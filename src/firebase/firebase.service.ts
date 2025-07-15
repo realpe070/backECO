@@ -10,76 +10,34 @@ export class FirebaseService implements OnModuleInit {
 
   constructor(private configService: ConfigService) { }
 
-  private validateAndFormatPrivateKey(key: string): string {
-    // 1. Limpiar la clave
-    let cleanKey = key.replace(/\\n/g, '\n').trim();
-
-    // 2. Asegurar el formato correcto
-    if (!cleanKey.includes('-----BEGIN PRIVATE KEY-----')) {
-      cleanKey = '-----BEGIN PRIVATE KEY-----\n' + cleanKey;
-    }
-    if (!cleanKey.includes('-----END PRIVATE KEY-----')) {
-      cleanKey = cleanKey + '\n-----END PRIVATE KEY-----';
-    }
-
-    // 3. Verificar formato PEM
-    const pemRegex = /^-----BEGIN PRIVATE KEY-----\n[\s\S]+\n-----END PRIVATE KEY-----\n?$/;
-    if (!pemRegex.test(cleanKey)) {
-      throw new Error('Invalid PEM format after normalization');
-    }
-
-    return cleanKey;
-  }
-
   async onModuleInit() {
     try {
       this.logger.log('🔄 Inicializando Firebase...');
 
-      const base64Config = this.configService.get<string>('FIREBASE_CONFIG_BASE64');
-      if (!base64Config) {
-        throw new Error('FIREBASE_CONFIG_BASE64 no está configurado');
+      const serviceAccount = {
+        type: "service_account",
+        project_id: this.configService.get('FIREBASE_PROJECT_ID'),
+        private_key_id: this.configService.get('FIREBASE_PRIVATE_KEY_ID'),
+        private_key: this.configService.get('FIREBASE_PRIVATE_KEY'),
+        client_email: this.configService.get('FIREBASE_CLIENT_EMAIL'),
+        client_id: this.configService.get('FIREBASE_CLIENT_ID'),
+        auth_uri: "https://accounts.google.com/o/oauth2/auth",
+        token_uri: "https://oauth2.googleapis.com/token",
+        auth_provider_x509_cert_url: "https://www.googleapis.com/oauth2/v1/certs",
+        client_x509_cert_url: this.configService.get('FIREBASE_CLIENT_CERT_URL'),
+      };
+
+      if (!admin.apps.length) {
+        const app = admin.initializeApp({
+          credential: admin.credential.cert(serviceAccount as admin.ServiceAccount)
+        });
+
+        this.auth = app.auth();
+        this.db = app.firestore();
+
+        this.logger.log('✅ Firebase inicializado correctamente');
       }
 
-      let decodedConfig: string;
-      try {
-        decodedConfig = Buffer.from(base64Config, 'base64').toString('utf8');
-      } catch (error) {
-        throw new Error('Error decodificando FIREBASE_CONFIG_BASE64');
-      }
-
-      let serviceAccount: any;
-      try {
-        serviceAccount = JSON.parse(decodedConfig);
-
-        // Formatear la clave privada antes de usarla
-        if (serviceAccount.private_key) {
-          serviceAccount.private_key = this.validateAndFormatPrivateKey(serviceAccount.private_key);
-        } else {
-          throw new Error('private_key is missing from service account');
-        }
-
-        if (!admin.apps.length) {
-          const app = admin.initializeApp({
-            credential: admin.credential.cert(serviceAccount)
-          });
-
-          this.auth = app.auth();
-          this.db = app.firestore();
-
-          // Verificación simple
-          await this.auth.getUser('test-connection').catch(error => {
-            if (error.code !== 'auth/user-not-found') {
-              throw error;
-            }
-          });
-
-          this.logger.log('✅ Firebase inicializado correctamente');
-        }
-      } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
-        this.logger.error('Error parsing service account:', errorMessage);
-        throw error;
-      }
     } catch (error) {
       this.logger.error('❌ Error inicializando Firebase:', error);
       throw error;
