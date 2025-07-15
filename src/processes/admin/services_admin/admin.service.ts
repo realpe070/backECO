@@ -5,7 +5,6 @@ import { UserResponseDto } from '../dto/user-response.dto';
 import { UserStats } from '../dto/user-stats.dto';
 import { CreateActivityDto, Activity } from '../dto/activity.dto';
 import { DriveService } from '../../../services/drive.service';
-import * as jwt from 'jsonwebtoken';
 import { ConfigService } from '@nestjs/config';
 
 @Injectable()
@@ -33,12 +32,12 @@ export class AdminService {
     }
 
     try {
-      // Generate custom JWT token
-      const token = jwt.sign(
-        { uid: 'admin-uid', email: loginDto.email, role: 'admin' },
-        this.JWT_SECRET,
-        { expiresIn: '1h' },
-      );
+      // Crear un custom token usando Firebase Admin
+      const uid = 'admin-' + Date.now();
+      const customToken = await this.firebaseService.getAuth().createCustomToken(uid, {
+        admin: true,
+        email: loginDto.email
+      });
 
       this.logger.log('Admin login successful');
       return {
@@ -48,7 +47,7 @@ export class AdminService {
           email: loginDto.email,
           role: 'admin',
           permissions: ['full_access'],
-          token,
+          token: customToken,
           timestamp: new Date().toISOString(),
         },
       };

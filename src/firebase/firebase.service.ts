@@ -10,18 +10,20 @@ export class FirebaseService implements OnModuleInit {
 
   constructor(private configService: ConfigService) { }
 
-  private validatePrivateKey(key: string): boolean {
-    return key.startsWith('-----BEGIN PRIVATE KEY-----') &&
-      key.endsWith('-----END PRIVATE KEY-----') &&
-      key.includes('\n');
-  }
+  private validateAndFormatPrivateKey(serviceAccount: any): void {
+    if (!serviceAccount.private_key) {
+      throw new Error('private_key is missing from service account');
+    }
 
-  private normalizePrivateKey(key: string): string {
-    const cleanKey = key.replace(/\\n/g, '\n').trim();
-    if (!this.validatePrivateKey(cleanKey)) {
+    // Asegurar que la clave privada tenga el formato correcto
+    if (serviceAccount.private_key.includes('\\n')) {
+      serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, '\n');
+    }
+
+    // Verificar formato PEM
+    if (!serviceAccount.private_key.includes('-----BEGIN PRIVATE KEY-----')) {
       throw new Error('Invalid private key format');
     }
-    return cleanKey;
   }
 
   async onModuleInit() {
@@ -36,30 +38,32 @@ export class FirebaseService implements OnModuleInit {
       const decodedConfig = Buffer.from(base64Config, 'base64').toString('utf8');
       const serviceAccount = JSON.parse(decodedConfig);
 
-      serviceAccount.private_key = this.normalizePrivateKey(serviceAccount.private_key);
+      // Validar y formatear la clave privada
+      this.validateAndFormatPrivateKey(serviceAccount);
 
       if (!admin.apps.length) {
-        this.logger.debug('📦 Creando nueva aplicación Firebase...');
         const app = admin.initializeApp({
           credential: admin.credential.cert(serviceAccount as admin.ServiceAccount),
+          databaseURL: `https://${serviceAccount.project_id}.firebaseio.com`
         });
 
         this.auth = app.auth();
         this.db = app.firestore();
 
-        // Verificar que auth se inicializó correctamente
-        if (!this.auth || typeof this.auth.listUsers !== 'function') {
-          throw new Error('Firebase Auth no se inicializó correctamente');
-        }
-
-        this.logger.log('✅ Firebase inicializado correctamente');
-
-        // Verificar conectividad
-        await this.auth.listUsers(1);
-        this.logger.log('✅ Conexión a Firebase Auth verificada');
+        await this.verifyConnection();
       }
     } catch (error) {
       this.logger.error('❌ Error inicializando Firebase:', error);
+      throw error;
+    }
+  }
+
+  private async verifyConnection(): Promise<void> {
+    try {
+      await this.auth.listUsers(1);
+      this.logger.log('✅ Conexión a Firebase verificada');
+    } catch (error) {
+      this.logger.error('❌ Error verificando conexión:', error);
       throw error;
     }
   }
