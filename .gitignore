@@ -119,3 +119,4 @@ yarn-error.log*
 # Environment files
 render-env.txt
 firebase-config-base64.txt
+config/firebase.json
