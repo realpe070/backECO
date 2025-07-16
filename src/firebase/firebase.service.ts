@@ -11,8 +11,11 @@ export class FirebaseService implements OnModuleInit {
   constructor(private configService: ConfigService) { }
 
   private formatPrivateKey(key: string): string {
-    // Convertir los saltos de línea escapados en saltos de línea reales
-    return key.replace(/\\n/g, "\n");
+    // Si el key no tiene saltos de línea reales (es decir, es una sola línea)
+    if (key.split('\n').length === 1) {
+      return key.replace(/\\n/g, "\n");
+    }
+    return key;
   }
 
   async onModuleInit() {
@@ -29,7 +32,7 @@ export class FirebaseService implements OnModuleInit {
         const decodedConfig = Buffer.from(base64Config, 'base64').toString('utf8');
         const parsedConfig = JSON.parse(decodedConfig);
 
-        // Asegurarse de que la clave tenga el formato PEM correcto
+        // Formatear la clave privada solo si es necesario
         if (parsedConfig.private_key) {
           parsedConfig.private_key = this.formatPrivateKey(parsedConfig.private_key);
         }
@@ -40,7 +43,6 @@ export class FirebaseService implements OnModuleInit {
           privateKey: parsedConfig.private_key
         };
 
-        // Debug para ver la estructura
         this.logger.debug('Service Account Structure:', {
           projectId: serviceAccount.projectId,
           clientEmail: serviceAccount.clientEmail,
@@ -57,10 +59,8 @@ export class FirebaseService implements OnModuleInit {
         const app = admin.initializeApp({
           credential: admin.credential.cert(serviceAccount)
         });
-
         this.auth = app.auth();
         this.db = app.firestore();
-
         this.logger.log('✅ Firebase inicializado correctamente');
       }
     } catch (error) {
@@ -89,10 +89,8 @@ export class FirebaseService implements OnModuleInit {
       if (!token || !token.startsWith('Bearer ')) {
         throw new UnauthorizedException('Token no proporcionado o formato inválido');
       }
-
       const tokenId = token.split('Bearer ')[1];
       this.logger.debug(`🔍 Verificando token: ${tokenId.substring(0, 20)}...`);
-
       const decodedToken = await this.auth.verifyIdToken(tokenId);
       return {
         uid: decodedToken.uid,
