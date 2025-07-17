@@ -71,7 +71,7 @@ export class FirebaseService implements OnModuleInit {
     return this.db;
   }
 
-  async verifyToken(token: string) {
+  async verifyToken(token: string): Promise<{ uid: string; email: string; role: string }> {
     try {
       if (!token || !token.startsWith('Bearer ')) {
         throw new UnauthorizedException('Token inválido');
@@ -79,8 +79,12 @@ export class FirebaseService implements OnModuleInit {
       const tokenId = token.split('Bearer ')[1].trim();
       this.logger.debug(`🔍 Verificando token: ${tokenId.slice(0, 20)}...`);
       const decodedToken = await this.auth.verifyIdToken(tokenId);
+      if (!decodedToken.email) {
+        throw new Error('Email not found in decoded token');
+      }
       return {
         uid: decodedToken.uid,
+        email: decodedToken.email, // Garantizado que no es undefined
         role: decodedToken.email === this.configService.get('ADMIN_EMAIL') ? 'admin' : 'user',
       };
     } catch (error) {
