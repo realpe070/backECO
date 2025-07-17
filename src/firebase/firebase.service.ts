@@ -30,7 +30,7 @@ export class FirebaseService implements OnModuleInit {
       const decodedConfig = Buffer.from(base64Config, 'base64').toString('utf8');
       const parsedConfig = JSON.parse(decodedConfig);
 
-      // Formatear la clave privada si es necesario
+      // Formatear la clave privada para que tenga saltos de línea reales
       if (parsedConfig.private_key) {
         parsedConfig.private_key = this.formatPrivateKey(parsedConfig.private_key);
       }

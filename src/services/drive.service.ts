@@ -40,17 +40,13 @@ export class DriveService {
 
   private async initializeDrive() {
     try {
-      // Obtener credenciales desde las variables de entorno de Firebase
       const base64Config = this.configService.get<string>('FIREBASE_CONFIG_BASE64');
-
       if (!base64Config) {
         throw new Error('FIREBASE_CONFIG_BASE64 is not set');
       }
-
       const serviceAccount = JSON.parse(
         Buffer.from(base64Config, 'base64').toString('utf8')
       );
-
       this.auth = new google.auth.GoogleAuth({
         credentials: {
           private_key: serviceAccount.private_key,
@@ -62,24 +58,18 @@ export class DriveService {
           'https://www.googleapis.com/auth/drive.metadata.readonly'
         ]
       });
-
       this.drive = google.drive({
         version: 'v3',
         auth: this.auth
       });
-
       if (!this.drive || !this.auth) {
         throw new Error('Drive or Auth not properly initialized');
       }
-
       this.logger.log('✅ Google Drive API initialized successfully');
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       this.logger.error('❌ Error initializing Drive service:', errorMessage);
-      if (error instanceof Error && error.stack) {
-        this.logger.debug('Stack trace:', error.stack);
-      }
-      // No lanzamos el error aquí para permitir la inicialización lazy
+      // Permitir nueva inicialización al primer uso
       this.logger.warn('Drive service will attempt to initialize on first use');
     }
   }
