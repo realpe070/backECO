@@ -27,11 +27,13 @@ export class FirebaseService implements OnModuleInit {
       const jsonConfigString = Buffer.from(base64Config, 'base64').toString('utf8');
       const parsedConfig = JSON.parse(jsonConfigString);
 
-      if (!parsedConfig.private_key || !parsedConfig.private_key.startsWith('-----BEGIN PRIVATE KEY-----')) {
+      // Primero formatear la clave privada para convertir saltos de línea escapados en reales
+      parsedConfig.private_key = this.formatPrivateKey(parsedConfig.private_key);
+
+      // Luego validar que tenga el formato PEM correcto
+      if (!parsedConfig.private_key.startsWith('-----BEGIN PRIVATE KEY-----')) {
         throw new Error('❌ Clave privada inválida o mal formateada');
       }
-
-      parsedConfig.private_key = this.formatPrivateKey(parsedConfig.private_key);
 
       const serviceAccount: admin.ServiceAccount = {
         projectId: parsedConfig.project_id,
