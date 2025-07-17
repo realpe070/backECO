@@ -21,10 +21,14 @@ export class AdminService {
     this.ADMIN_EMAIL = this.configService.get<string>('ADMIN_EMAIL') || 'default_admin_email';
     this.ADMIN_PASSWORD = this.configService.get<string>('ADMIN_PASSWORD') || 'default_admin_password';
     this.JWT_SECRET = this.configService.get<string>('JWT_SECRET') || 'default_secret_key';
+    // Debug: confirmar carga de variables de entorno
+    this.logger.debug(`Config loaded: ADMIN_EMAIL=${this.ADMIN_EMAIL}, ADMIN_PASSWORD=${this.ADMIN_PASSWORD}`);
   }
 
   async validateAdmin(loginDto: AdminLoginDto): Promise<{ status: boolean; message: string; data: any }> {
-    this.logger.debug(`Intento de login administrativo para: ${loginDto.email}`);
+    this.logger.debug(`Login attempt for: ${loginDto.email}`);
+    this.logger.debug(`Received password: ${loginDto.password}`);
+    this.logger.debug(`Expected password: ${this.ADMIN_PASSWORD}`);
 
     if (loginDto.email !== this.ADMIN_EMAIL || loginDto.password !== this.ADMIN_PASSWORD) {
       this.logger.warn('Invalid admin credentials');
