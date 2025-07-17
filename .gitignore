@@ -41,6 +41,7 @@ lerna-debug.log*
 .env.test.local
 .env.production.local
 .env.local
+.env.production
 
 # temp directory
 .temp
@@ -85,6 +86,7 @@ dist/
 .env
 .env.*
 !.env.example
+.env.production
 
 # Archivos del sistema
 .DS_Store
@@ -127,3 +129,7 @@ render-env.txt
 firebase-config-base64.txt
 config/firebase*.json
 src/firebase/firebase-key.json
+.env.production
+firebase_config_base64.txt
+config/firebase-real.json
+config/firebase-key.json
