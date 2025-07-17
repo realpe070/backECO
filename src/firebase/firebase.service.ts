@@ -35,6 +35,12 @@ export class FirebaseService implements OnModuleInit {
         parsedConfig.private_key = this.formatPrivateKey(parsedConfig.private_key);
       }
 
+      // Validar que la clave privada tenga formato PEM correcto
+      if (!parsedConfig.private_key ||
+        !parsedConfig.private_key.startsWith('-----BEGIN PRIVATE KEY-----')) {
+        throw new Error('Formato de clave privada inválido');
+      }
+
       const serviceAccount: admin.ServiceAccount = {
         projectId: parsedConfig.project_id,
         clientEmail: parsedConfig.client_email,
