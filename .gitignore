@@ -120,3 +120,4 @@ yarn-error.log*
 render-env.txt
 firebase-config-base64.txt
 config/firebase.json
+firebase_config_base64.txt
