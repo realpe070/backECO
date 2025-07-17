@@ -11,11 +11,8 @@ export class FirebaseService implements OnModuleInit {
   constructor(private configService: ConfigService) { }
 
   private formatPrivateKey(key: string): string {
-    // Si el key no tiene saltos de línea reales (es decir, es una sola línea)
-    if (key.split('\n').length === 1) {
-      return key.replace(/\\n/g, "\n");
-    }
-    return key;
+    // Convierte saltos de línea escapados en reales
+    return key.replace(/\\n/g, '\n');
   }
 
   async onModuleInit() {
@@ -24,22 +21,17 @@ export class FirebaseService implements OnModuleInit {
 
       const base64Config = this.configService.get<string>('FIREBASE_CONFIG_BASE64');
       if (!base64Config) {
-        throw new Error('FIREBASE_CONFIG_BASE64 no está configurado');
+        throw new Error('FIREBASE_CONFIG_BASE64 no está definido');
       }
 
-      const decodedConfig = Buffer.from(base64Config, 'base64').toString('utf8');
-      const parsedConfig = JSON.parse(decodedConfig);
+      const jsonConfigString = Buffer.from(base64Config, 'base64').toString('utf8');
+      const parsedConfig = JSON.parse(jsonConfigString);
 
-      // Formatear la clave privada para que tenga saltos de línea reales
-      if (parsedConfig.private_key) {
-        parsedConfig.private_key = this.formatPrivateKey(parsedConfig.private_key);
+      if (!parsedConfig.private_key || !parsedConfig.private_key.startsWith('-----BEGIN PRIVATE KEY-----')) {
+        throw new Error('❌ Clave privada inválida o mal formateada');
       }
 
-      // Validar que la clave privada tenga formato PEM correcto
-      if (!parsedConfig.private_key ||
-        !parsedConfig.private_key.startsWith('-----BEGIN PRIVATE KEY-----')) {
-        throw new Error('Formato de clave privada inválido');
-      }
+      parsedConfig.private_key = this.formatPrivateKey(parsedConfig.private_key);
 
       const serviceAccount: admin.ServiceAccount = {
         projectId: parsedConfig.project_id,
@@ -56,22 +48,25 @@ export class FirebaseService implements OnModuleInit {
         this.logger.log('✅ Firebase inicializado correctamente');
       }
     } catch (error) {
-      this.logger.error('❌ Error inicializando Firebase:', error);
+      if (error instanceof Error) {
+        this.logger.error('❌ Error inicializando Firebase:', error.message);
+      } else {
+        this.logger.error('❌ Error inicializando Firebase:', error);
+      }
       throw error;
     }
   }
 
   getAuth(): admin.auth.Auth {
-    if (!this.auth || typeof this.auth.listUsers !== 'function') {
-      this.logger.error('❌ Firebase Auth no está inicializado correctamente');
-      throw new Error('Firebase Auth no está inicializado o configurado correctamente');
+    if (!this.auth) {
+      throw new Error('Firebase Auth no inicializado');
     }
     return this.auth;
   }
 
   getFirestore(): admin.firestore.Firestore {
     if (!this.db) {
-      throw new Error('Firebase Firestore not initialized');
+      throw new Error('Firebase Firestore no inicializado');
     }
     return this.db;
   }
@@ -79,18 +74,21 @@ export class FirebaseService implements OnModuleInit {
   async verifyToken(token: string) {
     try {
       if (!token || !token.startsWith('Bearer ')) {
-        throw new UnauthorizedException('Token no proporcionado o formato inválido');
+        throw new UnauthorizedException('Token inválido');
       }
-      const tokenId = token.split('Bearer ')[1];
-      this.logger.debug(`🔍 Verificando token: ${tokenId.substring(0, 20)}...`);
+      const tokenId = token.split('Bearer ')[1].trim();
+      this.logger.debug(`🔍 Verificando token: ${tokenId.slice(0, 20)}...`);
       const decodedToken = await this.auth.verifyIdToken(tokenId);
       return {
         uid: decodedToken.uid,
-        email: decodedToken.email,
         role: decodedToken.email === this.configService.get('ADMIN_EMAIL') ? 'admin' : 'user',
       };
     } catch (error) {
-      this.logger.error('❌ Error verificando token:', error);
+      if (error instanceof Error) {
+        this.logger.error('❌ Error verificando token:', error.message);
+      } else {
+        this.logger.error('❌ Error verificando token:', error);
+      }
       throw new UnauthorizedException('Token inválido o expirado');
     }
   }
