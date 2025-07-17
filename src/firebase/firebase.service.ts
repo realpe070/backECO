@@ -11,8 +11,8 @@ export class FirebaseService implements OnModuleInit {
   constructor(private configService: ConfigService) { }
 
   private formatPrivateKey(key: string): string {
-    // Convierte saltos de línea escapados en reales
-    return key.replace(/\\n/g, '\n');
+    // Convierte saltos de línea escapados en reales y remueve espacios extra
+    return key.replace(/\\n/g, '\n').trim();
   }
 
   async onModuleInit() {
@@ -27,10 +27,11 @@ export class FirebaseService implements OnModuleInit {
       const jsonConfigString = Buffer.from(base64Config, 'base64').toString('utf8');
       const parsedConfig = JSON.parse(jsonConfigString);
 
-      // Primero formatear la clave privada para convertir saltos de línea escapados en reales
+      // Formateamos y limpiamos la clave privada
       parsedConfig.private_key = this.formatPrivateKey(parsedConfig.private_key);
+      this.logger.debug(`Longitud de clave privada: ${parsedConfig.private_key.length}`);
 
-      // Luego validar que tenga el formato PEM correcto
+      // Validamos el formato PEM
       if (!parsedConfig.private_key.startsWith('-----BEGIN PRIVATE KEY-----')) {
         throw new Error('❌ Clave privada inválida o mal formateada');
       }
@@ -41,6 +42,7 @@ export class FirebaseService implements OnModuleInit {
         privateKey: parsedConfig.private_key,
       };
 
+      // Inicializamos Firebase solo una vez
       if (!admin.apps.length) {
         const app = admin.initializeApp({
           credential: admin.credential.cert(serviceAccount),
@@ -86,7 +88,7 @@ export class FirebaseService implements OnModuleInit {
       }
       return {
         uid: decodedToken.uid,
-        email: decodedToken.email, // Garantizado que no es undefined
+        email: decodedToken.email,
         role: decodedToken.email === this.configService.get('ADMIN_EMAIL') ? 'admin' : 'user',
       };
     } catch (error) {
