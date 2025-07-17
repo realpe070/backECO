@@ -27,37 +27,23 @@ export class FirebaseService implements OnModuleInit {
         throw new Error('FIREBASE_CONFIG_BASE64 no está configurado');
       }
 
-      let serviceAccount: admin.ServiceAccount;
-      try {
-        const decodedConfig = Buffer.from(base64Config, 'base64').toString('utf8');
-        const parsedConfig = JSON.parse(decodedConfig);
+      const decodedConfig = Buffer.from(base64Config, 'base64').toString('utf8');
+      const parsedConfig = JSON.parse(decodedConfig);
 
-        // Formatear la clave privada solo si es necesario
-        if (parsedConfig.private_key) {
-          parsedConfig.private_key = this.formatPrivateKey(parsedConfig.private_key);
-        }
-
-        serviceAccount = {
-          projectId: parsedConfig.project_id,
-          clientEmail: parsedConfig.client_email,
-          privateKey: parsedConfig.private_key
-        };
-
-        this.logger.debug('Service Account Structure:', {
-          projectId: serviceAccount.projectId,
-          clientEmail: serviceAccount.clientEmail,
-          privateKeyLength: serviceAccount.privateKey?.length,
-          hasPrivateKey: !!serviceAccount.privateKey
-        });
-
-      } catch (error) {
-        this.logger.error('Error parsing config:', error);
-        throw new Error('Error en el formato de configuración');
+      // Formatear la clave privada si es necesario
+      if (parsedConfig.private_key) {
+        parsedConfig.private_key = this.formatPrivateKey(parsedConfig.private_key);
       }
+
+      const serviceAccount: admin.ServiceAccount = {
+        projectId: parsedConfig.project_id,
+        clientEmail: parsedConfig.client_email,
+        privateKey: parsedConfig.private_key,
+      };
 
       if (!admin.apps.length) {
         const app = admin.initializeApp({
-          credential: admin.credential.cert(serviceAccount)
+          credential: admin.credential.cert(serviceAccount),
         });
         this.auth = app.auth();
         this.db = app.firestore();
