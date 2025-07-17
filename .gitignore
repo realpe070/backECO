@@ -121,3 +121,9 @@ render-env.txt
 firebase-config-base64.txt
 config/firebase.json
 firebase_config_base64.txt
+
+# Excluir archivos con credenciales y configuraciones sensibles
+render-env.txt
+firebase-config-base64.txt
+config/firebase*.json
+src/firebase/firebase-key.json

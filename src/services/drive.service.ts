@@ -69,7 +69,7 @@ export class DriveService {
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       this.logger.error('❌ Error initializing Drive service:', errorMessage);
-      // Permitir nueva inicialización al primer uso
+      // Se permitirá reintentar en primer uso
       this.logger.warn('Drive service will attempt to initialize on first use');
     }
   }
@@ -277,11 +277,9 @@ export class DriveService {
   }
 
   static isValidDriveUrl(url: string): boolean {
-    // Allow both Drive URLs and simple filenames
     if (url.includes('drive.google.com')) {
       return url.includes('/file/d/') || url.includes('?id=');
     }
-    // Allow video filenames with common extensions
     return /\.(mp4|webm|mov|avi)$/i.test(url);
   }
 }
