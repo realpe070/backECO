@@ -73,7 +73,6 @@ async function bootstrap() {
         const allowedOrigins = [
           'http://localhost:3000',
           'http://localhost:4200',
-          'http://localhost:4300',
           'http://localhost:54991',
           'http://127.0.0.1:54991',
           'http://localhost:*',
