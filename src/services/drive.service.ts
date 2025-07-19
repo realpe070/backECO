@@ -1,6 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { google } from 'googleapis';
-import { ConfigService } from '@nestjs/config';
 import * as path from 'path';
 import * as fs from 'fs';
 
@@ -19,12 +18,12 @@ export class DriveService {
     '1PKmm05PopK40UjKrQaBQpiAL8bb2Nx-V'
   ];
 
-  constructor(private configService: ConfigService) {
+  constructor() {
     try {
-      // Obtener credenciales desde variables de entorno
-      const privateKey = this.configService.get<string>('FIREBASE_PRIVATE_KEY')?.replace(/\\n/g, '\n');
-      const clientEmail = this.configService.get<string>('FIREBASE_CLIENT_EMAIL');
-      const projectId = this.configService.get<string>('FIREBASE_PROJECT_ID');
+      // Use environment variables directly
+      const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n');
+      const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
+      const projectId = process.env.FIREBASE_PROJECT_ID;
 
       if (!privateKey || !clientEmail || !projectId) {
         throw new Error('Missing Drive API credentials in environment variables');
