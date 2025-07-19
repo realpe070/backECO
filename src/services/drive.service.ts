@@ -20,13 +20,29 @@ export class DriveService {
 
   constructor() {
     try {
-      // Use environment variables directly
+      // Add debug logging for environment variables
+      this.logger.debug('Checking environment variables...');
+
       const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n');
       const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
       const projectId = process.env.FIREBASE_PROJECT_ID;
 
+      // Log the presence/absence of each required variable
+      this.logger.debug(`
+Environment Variables Status:
+- FIREBASE_PROJECT_ID: ${projectId ? 'Present' : 'Missing'}
+- FIREBASE_CLIENT_EMAIL: ${clientEmail ? 'Present' : 'Missing'}
+- FIREBASE_PRIVATE_KEY: ${privateKey ? 'Present' : 'Missing'}
+      `);
+
       if (!privateKey || !clientEmail || !projectId) {
-        throw new Error('Missing Drive API credentials in environment variables');
+        const missingVars = [
+          !projectId && 'FIREBASE_PROJECT_ID',
+          !clientEmail && 'FIREBASE_CLIENT_EMAIL',
+          !privateKey && 'FIREBASE_PRIVATE_KEY',
+        ].filter(Boolean);
+
+        throw new Error(`Missing required environment variables: ${missingVars.join(', ')}`);
       }
 
       this.auth = new google.auth.GoogleAuth({
@@ -49,6 +65,14 @@ export class DriveService {
       this.logger.log('✅ Google Drive API initialized successfully');
     } catch (error) {
       this.logger.error('❌ Error initializing Drive service:', error);
+      this.logger.error('Environment debug info:', {
+        NODE_ENV: process.env.NODE_ENV,
+        vars_defined: {
+          FIREBASE_PROJECT_ID: !!process.env.FIREBASE_PROJECT_ID,
+          FIREBASE_CLIENT_EMAIL: !!process.env.FIREBASE_CLIENT_EMAIL,
+          FIREBASE_PRIVATE_KEY: !!process.env.FIREBASE_PRIVATE_KEY,
+        }
+      });
       throw error;
     }
   }
