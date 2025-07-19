@@ -69,24 +69,7 @@ async function bootstrap() {
 
     // Actualizar configuración CORS
     app.enableCors({
-      origin: (origin: string | undefined, callback: (error: Error | null, allow?: boolean) => void) => {
-        const allowedOrigins = [
-          'http://localhost:3000',
-          'http://localhost:4200',
-          'http://localhost:54991',
-          'http://127.0.0.1:54991',
-          'http://localhost:*',
-          'http://127.0.0.1:*'
-        ];
-
-        if (!origin || allowedOrigins.some(allowed =>
-          origin.match(new RegExp(allowed.replace('*', '.*')))
-        )) {
-          callback(null, true);
-        } else {
-          callback(null, false);
-        }
-      },
+      origin: '*',
       methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
       allowedHeaders: [
         'Content-Type',
@@ -106,8 +89,7 @@ async function bootstrap() {
 
     // Middleware mejorado para autenticación y CORS
     app.use((req: any, res: any, next: any) => {
-      const origin = req.headers.origin;
-      res.header('Access-Control-Allow-Origin', origin);
+      res.header('Access-Control-Allow-Origin', '*');
       res.header('Access-Control-Allow-Credentials', 'true');
       res.header('Access-Control-Allow-Methods', 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS');
       res.header(

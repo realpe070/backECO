@@ -1,7 +1,16 @@
 import * as admin from 'firebase-admin';
 import dotenv from 'dotenv';
+import cors from 'cors';
 
 dotenv.config();
+
+// CORS configuration for testing
+export const corsOptions = {
+    origin: '*',
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
+    credentials: true,
+    optionsSuccessStatus: 204,
+};
 
 const serviceAccount = {
     projectId: process.env.FIREBASE_PROJECT_ID,
