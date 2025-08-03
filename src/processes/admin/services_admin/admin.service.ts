@@ -7,7 +7,6 @@ import { CreateActivityDto, Activity } from '../dto/activity.dto';
 import { DriveService } from '../../../services/drive.service';
 import * as jwt from 'jsonwebtoken';
 import { ConfigService } from '@nestjs/config';
-import { UpdateActivityDto } from '../dto/update-activity.dto';
 
 @Injectable()
 export class AdminService {
@@ -26,27 +25,22 @@ export class AdminService {
   }
 
   async validateAdmin(loginDto: AdminLoginDto): Promise<{ status: boolean; message: string; data: any }> {
+    this.logger.debug(`Intento de login administrativo para: ${loginDto.email}`);
+
+    if (loginDto.email !== this.ADMIN_EMAIL || loginDto.password !== this.ADMIN_PASSWORD) {
+      this.logger.warn('Invalid admin credentials');
+      throw new UnauthorizedException('Credenciales inválidas');
+    }
+
     try {
-      this.logger.debug(`Intento de login administrativo para: ${loginDto.email}`);
-
-      if (loginDto.email !== this.ADMIN_EMAIL || loginDto.password !== this.ADMIN_PASSWORD) {
-        this.logger.warn('Invalid admin credentials');
-        throw new UnauthorizedException('Credenciales inválidas');
-      }
-
-      // Generate custom JWT token with longer expiration
+      // Generate custom JWT token
       const token = jwt.sign(
-        {
-          uid: 'admin-uid',
-          email: loginDto.email,
-          role: 'admin',
-          iat: Math.floor(Date.now() / 1000),
-        },
+        { uid: 'admin-uid', email: loginDto.email, role: 'admin' },
         this.JWT_SECRET,
-        { expiresIn: '24h' }, // Increased token lifetime
+        { expiresIn: '1h' },
       );
 
-      this.logger.log('✅ Admin login successful');
+      this.logger.log('Admin login successful');
       return {
         status: true,
         message: 'Login administrativo exitoso',
@@ -59,7 +53,7 @@ export class AdminService {
         },
       };
     } catch (error) {
-      this.logger.error('❌ Error en validación de admin:', error);
+      this.logger.error('Error en validación de admin:', error);
       throw new UnauthorizedException('Error en la autenticación');
     }
   }
@@ -67,11 +61,11 @@ export class AdminService {
   async getFirebaseUsers(): Promise<UserResponseDto[]> {
     try {
       this.logger.debug('Obteniendo usuarios de Firebase');
-
+      
       const auth = this.firebaseService.getAuth();
       const { users } = await auth.listUsers();
       const db = this.firebaseService.getFirestore();
-
+      
       const usersData = await Promise.all(users.map(async (user) => {
         try {
           const userDoc = await db.collection('users').doc(user.uid).get();
@@ -96,9 +90,9 @@ export class AdminService {
           return null;
         }
       }));
-
+      
       return usersData.filter((user): user is UserResponseDto => user !== null);
-
+      
     } catch (error: unknown) {
       this.logger.error('Error obteniendo usuarios de Firebase:', error);
       throw new Error('Error al obtener usuarios de Firebase');
@@ -108,7 +102,7 @@ export class AdminService {
   async getUserStats(userId: string): Promise<UserStats> {
     try {
       this.logger.debug(`Obteniendo estadísticas del usuario ${userId}`);
-
+      
       const db = this.firebaseService.getFirestore();
       const userDoc = await db.collection('users').doc(userId).get();
 
@@ -122,7 +116,7 @@ export class AdminService {
       }
 
       const userData = userDoc.data() || {};
-
+      
       const stats = {
         activities_done: Number(userData.activities_done) || 0,
         total_activities: Number(userData.total_activities) || 0,
@@ -131,7 +125,7 @@ export class AdminService {
 
       this.logger.debug('Estadísticas obtenidas:', stats);
       return stats;
-
+      
     } catch (error: unknown) {
       this.logger.error(`Error obteniendo estadísticas para usuario ${userId}:`, error);
       throw new HttpException({
@@ -149,15 +143,24 @@ export class AdminService {
       const db = this.firebaseService.getFirestore();
       const activitiesRef = db.collection('activities');
 
+      // Extract the file ID from the video URL
+      const driveFileId = DriveService.extractFileId(createActivityDto.videoUrl);
+
+      // If driveFileId is null, it means the URL is invalid
+      if (!driveFileId) {
+        throw new HttpException({
+          status: false,
+          message: 'Invalid video URL',
+          error: 'INVALID_VIDEO_URL',
+        }, HttpStatus.BAD_REQUEST);
+      }
+
       const now = new Date().toISOString();
       const activityData = {
         ...createActivityDto,
         createdAt: now,
         updatedAt: now,
-        // Add default values if not provided
-        minTime: createActivityDto.minTime || 30,
-        maxTime: createActivityDto.maxTime || 60,
-        sensorEnabled: createActivityDto.sensorEnabled ?? false,
+        driveFileId: driveFileId, // Store the extracted file ID
       };
 
       const docRef = await activitiesRef.add(activityData);
@@ -179,18 +182,18 @@ export class AdminService {
   async deleteActivity(activityId: string): Promise<void> {
     try {
       this.logger.debug(`Eliminando actividad: ${activityId}`);
-
+      
       const db = this.firebaseService.getFirestore();
       const activityRef = db.collection('activities').doc(activityId);
-
+      
       const doc = await activityRef.get();
       if (!doc.exists) {
         throw new NotFoundException('Actividad no encontrada');
       }
-
+      
       await activityRef.delete();
       this.logger.debug('Actividad eliminada exitosamente');
-
+      
     } catch (error) {
       this.logger.error('Error eliminando actividad:', error);
       throw error;
@@ -201,67 +204,15 @@ export class AdminService {
     try {
       const db = this.firebaseService.getFirestore();
       const snapshot = await db.collection('activities').get();
+      
+      return snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      } as Activity));
 
-      return snapshot.docs.map(doc => {
-        const data = doc.data();
-        return {
-          id: doc.id,
-          name: this.sanitizeString(data.name),
-          description: this.sanitizeString(data.description),
-          minTime: data.minTime,
-          maxTime: data.maxTime,
-          category: this.sanitizeString(data.category),
-          videoUrl: this.sanitizeString(data.videoUrl),
-          sensorEnabled: !!data.sensorEnabled,
-          createdAt: data.createdAt,
-          updatedAt: data.updatedAt,
-          type: data.type || 'exercise',
-          duration: data.duration || 300,
-          driveFileId: data.driveFileId ? this.sanitizeString(data.driveFileId) : null
-        } as Activity;
-      });
     } catch (error) {
       this.logger.error('Error obteniendo actividades:', error);
       throw new Error('Error al obtener actividades');
-    }
-  }
-
-  private sanitizeString(value: string | null | undefined): string {
-    if (!value) return '';
-    return value
-      .normalize('NFKD') // Descompone los caracteres acentuados
-      .replace(/[\u0300-\u036f]/g, '') // Elimina diacríticos
-      .replace(/[^\x20-\x7E]/g, '') // Solo mantiene caracteres ASCII imprimibles
-      .trim();
-  }
-
-  async updateActivity(id: string, updateActivityDto: UpdateActivityDto) {
-    try {
-      const db = this.firebaseService.getFirestore();
-      const activityRef = db.collection('activities').doc(id);
-
-      // Verify activity exists
-      const doc = await activityRef.get();
-      if (!doc.exists) {
-        throw new HttpException('Actividad no encontrada', HttpStatus.NOT_FOUND);
-      }
-
-      const now = new Date().toISOString();
-      const updateData = {
-        ...updateActivityDto,
-        updatedAt: now
-      };
-
-      await activityRef.update(updateData);
-
-      return {
-        id,
-        ...doc.data(),
-        ...updateData
-      };
-    } catch (error) {
-      this.logger.error('Error updating activity:', error);
-      throw error;
     }
   }
 }

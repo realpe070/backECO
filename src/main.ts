@@ -4,15 +4,7 @@ import { ConfigService } from '@nestjs/config';
 import * as os from 'os';
 import { HttpExceptionFilter } from './filters/http-exception.filter';
 import { TransformInterceptor } from './interceptors/transform.interceptor';
-import { Logger, ValidationPipe } from '@nestjs/common';
-import * as dotenv from 'dotenv';
-import * as bodyParser from 'body-parser';
-import { Request, Response, NextFunction } from 'express';
-import { Utf8Interceptor } from './interceptors/utf8.interceptor';
-
-// Cargar el archivo de entorno correcto
-const environment = process.env.NODE_ENV || 'development';
-dotenv.config({ path: `.env.${environment}` });
+import { Logger } from '@nestjs/common';
 
 function getNetworkInfo() {
   const interfaces = os.networkInterfaces();
@@ -45,7 +37,7 @@ async function findAvailablePort(startPort: number): Promise<number> {
     server.unref();
 
     const tryPort = (port: number) => {
-      server.once('error', (err: NodeJS.ErrnoException) => {
+      server.once('error', (err: any) => {
         if (err.code === 'EADDRINUSE') {
           tryPort(port + 1);
         } else {
@@ -72,65 +64,12 @@ async function bootstrap() {
     const configService = app.get(ConfigService);
     const networkIP = getNetworkInfo();
     const logger = new Logger('Bootstrap');
-    const initialPort = configService.get('PORT') || 4300;
+    const port = configService.get('PORT') || 4300;
     const environment = configService.get('NODE_ENV') || 'development';
-
-    // Force response JSON with UTF-8 charset
-    app.use((req: Request, res: Response, next: NextFunction) => {
-      res.setHeader('Content-Type', 'application/json; charset=utf-8');
-      next();
-    });
-
-    // Ensure body parsing uses UTF-8 (if not already set)
-    app.use(bodyParser.json({ type: 'application/json', limit: '50mb' }));
-
-    // Force JSON response encoding
-    app.use((req: Request, res: Response, next: NextFunction) => {
-      const originalJson = res.json;
-      res.json = function (body: any): Response {
-        if (body && typeof body === 'object') {
-          // Ensure all strings are properly encoded
-          const processValue = (value: any): any => {
-            if (typeof value === 'string') {
-              return value
-                .normalize('NFKD')
-                .replace(/[\u0300-\u036f]/g, '')
-                .replace(/[^\x20-\x7E]/g, '')
-                .trim();
-            }
-            if (Array.isArray(value)) {
-              return value.map(processValue);
-            }
-            if (value && typeof value === 'object') {
-              return Object.fromEntries(
-                Object.entries(value).map(([k, v]) => [k, processValue(v)])
-              );
-            }
-            return value;
-          };
-          body = processValue(body);
-        }
-        return originalJson.call(this, body);
-      };
-      next();
-    });
-
-    // Try to find an available port
-    let port: number;
-    try {
-      port = await findAvailablePort(initialPort);
-      logger.log(`Found available port: ${port}`);
-    } catch (error: unknown) {
-      const err = error as Error;
-      logger.error(`Failed to find available port: ${err.message}`);
-      process.exit(1);
-    }
-
-    const corsOrigins = configService.get('CORS_ORIGINS')?.split(',') || ['*'];
 
     // Actualizar configuración CORS
     app.enableCors({
-      origin: true, // Permite todas las origenes en desarrollo
+      origin: '*',
       methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
       allowedHeaders: [
         'Content-Type',
@@ -149,14 +88,13 @@ async function bootstrap() {
     });
 
     // Middleware mejorado para autenticación y CORS
-    app.use((req: Request, res: Response, next: NextFunction) => {
-      const origin = req.headers.origin;
-      res.header('Access-Control-Allow-Origin', origin || '*');
+    app.use((req: any, res: any, next: any) => {
+      res.header('Access-Control-Allow-Origin', '*');
       res.header('Access-Control-Allow-Credentials', 'true');
       res.header('Access-Control-Allow-Methods', 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS');
       res.header(
         'Access-Control-Allow-Headers',
-        'Content-Type, Accept, Authorization, x-client-type, Origin, Access-Control-Allow-Origin, Access-Control-Allow-Credentials, Access-Control-Allow-Methods, X-Requested-With'
+        'Content-Type, Accept, Authorization, x-client-type, Origin, Access-Control-Allow-Origin, X-Requested-With'
       );
 
       // Manejo especial para preflight requests
@@ -166,30 +104,25 @@ async function bootstrap() {
         return;
       }
 
+      // Logging de token para debugging
+      const token = req.headers.authorization;
+      if (token) {
+        logger.debug(`🔑 Token received: ${token.substring(0, 20)}...`);
+      }
+
       next();
     });
 
     // Middleware para logging mejorado
-    app.use((req: Request, res: Response, next: NextFunction) => {
+    app.use((req: any, res: any, next: any) => {
       const clientType = req.headers['x-client-type'] || 'unknown';
       const origin = req.headers.origin || 'unknown';
       logger.debug(`📡 [${clientType}] ${req.method} ${req.path} from ${origin}`);
       next();
     });
 
-    app.useGlobalPipes(
-      new ValidationPipe({
-        whitelist: true,
-        forbidNonWhitelisted: true,
-        transform: true,
-      }),
-    );
-
     app.useGlobalFilters(new HttpExceptionFilter());
-    app.useGlobalInterceptors(
-      new TransformInterceptor(),
-      new Utf8Interceptor(),
-    );
+    app.useGlobalInterceptors(new TransformInterceptor());
 
     console.log(`
 🔍 Server Configuration:
@@ -202,20 +135,10 @@ async function bootstrap() {
 
     await app.listen(port, '0.0.0.0');
     logger.log(`🚀 Server running on port ${port} in ${environment} mode`);
-  } catch (error: unknown) {
-    const err = error as Error;
-    console.error('❌ Server startup error:', err);
+  } catch (error) {
+    console.error('❌ Server startup error:', error);
     process.exit(1);
   }
 }
 bootstrap();
-
-// Manejo de errores no capturados
-process.on('uncaughtException', (err) => {
-  console.error('❌ Uncaught Exception:', err);
-});
-
-process.on('unhandledRejection', (reason, promise) => {
-  console.error('❌ Unhandled Rejection:', reason);
-});
 
