@@ -2,6 +2,7 @@ import { Injectable, CanActivate, ExecutionContext, UnauthorizedException, Logge
 import { FirebaseService } from '../../../firebase/firebase.service';
 import * as jwt from 'jsonwebtoken';
 import { JwtPayload } from 'jsonwebtoken';
+import { Request } from 'express';
 
 @Injectable()
 export class FirebaseAuthGuard implements CanActivate {
@@ -13,7 +14,7 @@ export class FirebaseAuthGuard implements CanActivate {
     { path: '/admin/check', method: 'GET' },
   ];
 
-  constructor(private firebaseService: FirebaseService) {}
+  constructor(private firebaseService: FirebaseService) { }
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest();
@@ -57,26 +58,26 @@ export class FirebaseAuthGuard implements CanActivate {
     this.logger.debug(`🔒 [Auth] Request: ${method} ${path}`);
     this.logger.debug(`🔑 [Auth] Headers: ${JSON.stringify(request.headers)}`);
 
-    const authHeader = request.headers.authorization;
-    this.logger.debug(`🔑 [Auth] Verifying token for ${path}`);
-    this.logger.debug(`Auth header present: ${!!authHeader}`);
+    // Extract token from header or query param
+    const authHeader = request.headers['authorization'];
+    const tokenFromHeader = authHeader?.startsWith('Bearer ') ? authHeader.split('Bearer ')[1] : null;
+    const tokenFromQuery = request.query?.token;
 
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      this.logger.error(`❌ [Auth] No authorization header for ${path}`);
+    const token = tokenFromHeader || tokenFromQuery;
+
+    this.logger.debug(`🔑 Token source: ${tokenFromHeader ? 'header' : (tokenFromQuery ? 'query' : 'none')}`);
+
+    // Uncomment authentication check
+    if (!token) {
+      this.logger.warn('No token provided in headers or query params');
       throw new UnauthorizedException({
         status: false,
-        message: 'No authorization header found',
-        error: 'AUTH_REQUIRED',
+        message: 'No Firebase token found',
+        error: 'AUTH_REQUIRED'
       });
     }
 
-    const token = authHeader.split('Bearer ')[1]?.trim();
-
     try {
-      if (!token) {
-        throw new Error('No token provided');
-      }
-
       const decodedToken = await this.verifyToken(token);
       request.user = decodedToken;
 

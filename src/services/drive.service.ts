@@ -27,7 +27,7 @@ export class DriveService {
       const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
       const projectId = process.env.FIREBASE_PROJECT_ID;
 
-      // Log the presence/absence of each required variable
+
       this.logger.debug(`
 Environment Variables Status:
 - FIREBASE_PROJECT_ID: ${projectId ? 'Present' : 'Missing'}
@@ -211,6 +211,21 @@ Environment Variables Status:
     }
   }
 
+  async validateFileAccess(fileId: string): Promise<boolean> {
+    try {
+      const response = await this.drive.files.get({
+        fileId,
+        fields: 'id, capabilities'
+      });
+
+      // Changed from canRead to canDownload which is a valid capability
+      return response.data.capabilities?.canDownload || false;
+    } catch (error) {
+      this.logger.error(`Error validating file access for ${fileId}:`, error);
+      return false;
+    }
+  }
+
   private async getAccessToken(fileId: string): Promise<string> {
     try {
       const response = await this.drive.files.get({
@@ -231,7 +246,8 @@ Environment Variables Status:
   }
 
   private getThumbnailUrl(fileId: string): string {
-    return `https://drive.google.com/thumbnail?id=${fileId}&sz=w400-h300-n`;
+    // Instead of direct Google Drive URL, use our backend proxy
+    return `/admin/drive/thumbnail/${fileId}`;
   }
 
   private getPreviewUrl(fileId: string): string {
@@ -243,7 +259,8 @@ Environment Variables Status:
   }
 
   private getStreamUrl(fileId: string, accessToken: string): string {
-    return `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media&access_token=${accessToken}`;
+    // Include auth token in URL for direct access
+    return `/admin/drive/video/${fileId}?token=${accessToken}`;
   }
 
   private getEmbedUrl(fileId: string): string {
@@ -257,5 +274,9 @@ Environment Variables Status:
     }
     // Allow video filenames with common extensions
     return /\.(mp4|webm|mov|avi)$/i.test(url);
+  }
+
+  getDriveInstance() {
+    return this.drive;
   }
 }
