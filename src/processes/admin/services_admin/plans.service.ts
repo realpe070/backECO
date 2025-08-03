@@ -6,22 +6,45 @@ import { CreatePlanDto, Plan } from '../dto/plan.dto';
 export class PlansService {
   private readonly logger = new Logger(PlansService.name);
 
-  constructor(private readonly firebaseService: FirebaseService) { }
+  constructor(private readonly firebaseService: FirebaseService) {}
 
   async createPlan(createPlanDto: CreatePlanDto): Promise<Plan> {
     try {
-      this.logger.debug('Creando nuevo plan:');
-      this.logger.debug(JSON.stringify(createPlanDto));
+      this.logger.debug('Creando nuevo plan:', createPlanDto);
+
+      // Validate activities
+      if (createPlanDto.activities.some(activity => !activity.activityId)) {
+        throw new BadRequestException('Todas las actividades deben tener un ID válido');
+      }
 
       const db = this.firebaseService.getFirestore();
-      const planRef = db.collection('plans');
+      const plansRef = db.collection('plans');
 
-      const planData = createPlanDto.toFirestore();
-      const docRef = await planRef.add(planData);
+      // Verify all activities exist
+      const activitiesRef = db.collection('activities');
+      const activityIds = createPlanDto.activities.map(a => a.activityId);
+      
+      const activityDocs = await Promise.all(
+        activityIds.map(id => activitiesRef.doc(id).get())
+      );
 
+      if (activityDocs.some(doc => !doc.exists)) {
+        throw new BadRequestException('Una o más actividades no existen');
+      }
+
+      const now = new Date().toISOString();
+      const planData = {
+        ...createPlanDto,
+        status: 'available',
+        createdAt: now,
+        updatedAt: now,
+      };
+
+      const docRef = await plansRef.add(planData);
+      
       return {
         id: docRef.id,
-        ...planData
+        ...planData,
       } as Plan;
     } catch (error) {
       this.logger.error('Error creando plan:', error);
@@ -36,37 +59,10 @@ export class PlansService {
         .orderBy('createdAt', 'desc')
         .get();
 
-      // Obtener detalles de las actividades para cada plan
-      const plans = await Promise.all(snapshot.docs.map(async doc => {
-        const planData = doc.data();
-        const activities = planData.activities || [];
-
-        // Obtener detalles de cada actividad
-        const activitiesWithDetails = await Promise.all(
-          activities.map(async (activity: any) => {
-            const activityDoc = await db
-              .collection('activities')
-              .doc(activity.activityId)
-              .get();
-
-            if (activityDoc.exists) {
-              return {
-                ...activity,
-                details: activityDoc.data()
-              };
-            }
-            return activity;
-          })
-        );
-
-        return {
-          id: doc.id,
-          ...planData,
-          activities: activitiesWithDetails
-        } as Plan;
-      }));
-
-      return plans;
+      return snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      } as Plan));
     } catch (error) {
       this.logger.error('Error obteniendo planes:', error);
       throw error;
@@ -98,7 +94,7 @@ export class PlansService {
       // Verify all activities exist
       const activitiesRef = db.collection('activities');
       const activityIds = updatePlanDto.activities.map(a => a.activityId);
-
+      
       const activityDocs = await Promise.all(
         activityIds.map(actId => activitiesRef.doc(actId).get())
       );
@@ -114,7 +110,7 @@ export class PlansService {
       };
 
       await planRef.update(planData);
-
+      
       return {
         id,
         ...planData,

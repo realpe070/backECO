@@ -21,13 +21,13 @@ export class CreateActivityDto {
   @ApiProperty({ description: 'Tiempo mínimo en segundos' })
   @IsNumber()
   @Min(10)
-  @Max(300) // Increased max time limit
+  @Max(30)
   minTime!: number;
 
   @ApiProperty({ description: 'Tiempo máximo en segundos' })
   @IsNumber()
   @Min(10)
-  @Max(300) // Increased max time limit
+  @Max(120)
   maxTime!: number;
 
   @ApiProperty({ description: 'Categoría de la actividad' })
@@ -57,20 +57,16 @@ export class CreateActivityDto {
   @IsDateString()
   createdAt?: string;
 
-  @ApiProperty({ description: 'Fecha de actualización', required: false })
+  @ApiProperty({ description: 'Fecha de última actualización', required: false })
   @IsOptional()
   @IsDateString()
   updatedAt?: string;
 
-  @ApiProperty({ description: 'Tipo de actividad', required: false })
-  @IsOptional()
+  @IsNotEmpty()
   @IsEnum(ActivityType)
-  type?: ActivityType = ActivityType.EXERCISE;
+  type!: ActivityType;
 
-  @ApiProperty({ description: 'Duración en segundos', required: false })
-  @IsOptional()
+  @IsNotEmpty()
   @IsNumber()
-  @Min(0)
-  @Max(600)
-  duration?: number = 300;
+  duration!: number;
 }

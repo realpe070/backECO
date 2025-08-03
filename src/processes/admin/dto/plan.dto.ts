@@ -1,16 +1,17 @@
-import { IsString, IsNotEmpty, IsArray, ValidateNested, IsOptional, IsDateString } from 'class-validator';
-import { Type } from 'class-transformer';
+import { IsNotEmpty, IsString, IsArray, ValidateNested, IsOptional, IsDateString, IsNumber, Min } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
-import { PlanActivityDto } from './plan-activity.dto';
+import { Type } from 'class-transformer';
 
-export interface Plan {
-  id: string;
-  name: string;
-  description: string;
-  activities: PlanActivityDto[];
-  createdAt: string;
-  updatedAt: string;
-  status?: string;
+class PlanActivityDto {
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty({ message: 'El ID de la actividad es requerido' })
+  activityId!: string;
+
+  @ApiProperty()
+  @IsNumber()
+  @Min(0, { message: 'El orden debe ser mayor o igual a 0' })
+  order!: number;
 }
 
 export class CreatePlanDto {
@@ -24,40 +25,22 @@ export class CreatePlanDto {
   @IsNotEmpty()
   description!: string;
 
-  @ApiProperty({ description: 'Actividades del plan', type: [PlanActivityDto] })
+  @ApiProperty({ description: 'Lista de actividades del plan' })
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => PlanActivityDto)
   activities!: PlanActivityDto[];
 
-  @ApiProperty({ description: 'Fecha de creación', required: false })
+  @IsString()
   @IsOptional()
+  createdBy?: string;
+
   @IsDateString()
-  createdAt?: string;
-
-  @ApiProperty({ description: 'Fecha de actualización', required: false })
-  @IsOptional()
-  @IsDateString()
-  updatedAt?: string;
-
-  constructor(name: string, description: string, activities: PlanActivityDto[]) {
-    this.name = name;
-    this.description = description;
-    this.activities = activities;
-    this.createdAt = new Date().toISOString();
-    this.updatedAt = new Date().toISOString();
-  }
-
-  toFirestore() {
-    return {
-      name: this.name,
-      description: this.description,
-      activities: this.activities.map(activity => activity.toJSON()),
-      createdAt: this.createdAt || new Date().toISOString(),
-      updatedAt: this.updatedAt || new Date().toISOString(),
-      status: 'active'
-    };
-  }
+  @IsNotEmpty()
+  createdAt!: string;
 }
 
-export class UpdatePlanDto extends CreatePlanDto { }
+export interface Plan extends CreatePlanDto {
+  id: string;
+  updatedAt: string;
+}
