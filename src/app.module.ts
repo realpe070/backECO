@@ -8,6 +8,7 @@ import { HealthController } from './controllers/health.controller';
 import { HealthAppController } from './controllers/health-app.controller';
 import { NetworkInfoController } from './controllers/network-info.controller';
 import { DriveService } from './services/drive.service';
+import { DriveController } from './controllers/drive.controller';
 
 @Module({
   imports: [
@@ -20,7 +21,8 @@ import { DriveService } from './services/drive.service';
   controllers: [
     HealthController,
     HealthAppController,
-    NetworkInfoController
+    NetworkInfoController,
+    DriveController
   ],
   providers: [
     DriveService,
