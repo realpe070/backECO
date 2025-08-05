@@ -18,8 +18,9 @@
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
-    "prebuild": "rimraf dist",
-    "postinstall": "npm run build"
+    "clean": "rm -rf dist",
+    "prebuild": "npm run clean",
+    "postinstall": "nest build"
   },
   "dependencies": {
     "@nestjs/common": "^10.0.0",
@@ -46,7 +47,8 @@
     "prisma": "^6.4.1",
     "reflect-metadata": "^0.1.13",
     "rxjs": "^7.8.1",
-    "swagger-ui-express": "^5.0.1"
+    "swagger-ui-express": "^5.0.1",
+    "rimraf": "^5.0.5"
   },
   "devDependencies": {
     "@nestjs/cli": "^10.0.0",
