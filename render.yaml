@@ -2,7 +2,7 @@ services:
   - type: web
     name: ecobreack-backend
     env: node
-    buildCommand: npm ci && npm run build
+    buildCommand: npm ci && npx @nestjs/cli build
     startCommand: npm run start
     nodeVersion: 18.17.0
     envVars:

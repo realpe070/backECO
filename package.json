@@ -6,11 +6,11 @@
   "private": true,
   "license": "UNLICENSED",
   "scripts": {
-    "build": "nest build",
+    "build": "npx @nestjs/cli build",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "node dist/main",
-    "start:dev": "cross-env NODE_ENV=development nest start --watch",
-    "start:debug": "cross-env NODE_ENV=development nest start --debug --watch",
+    "start:dev": "cross-env NODE_ENV=development npx @nestjs/cli start --watch",
+    "start:debug": "cross-env NODE_ENV=development npx @nestjs/cli start --debug --watch",
     "start:prod": "node dist/main",
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
     "test": "jest",
@@ -20,7 +20,7 @@
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "clean": "rm -rf dist",
     "prebuild": "npm run clean",
-    "postinstall": "nest build"
+    "postinstall": "npx @nestjs/cli build"
   },
   "dependencies": {
     "@nestjs/common": "^10.0.0",
@@ -46,12 +46,12 @@
     "passport-jwt": "^4.0.1",
     "prisma": "^6.4.1",
     "reflect-metadata": "^0.1.13",
+    "rimraf": "^5.0.5",
     "rxjs": "^7.8.1",
-    "swagger-ui-express": "^5.0.1",
-    "rimraf": "^5.0.5"
+    "swagger-ui-express": "^5.0.1"
   },
   "devDependencies": {
-    "@nestjs/cli": "^10.0.0",
+    "@nestjs/cli": "10.1.18",
     "@nestjs/schematics": "^10.0.0",
     "@nestjs/testing": "^10.0.0",
     "@types/express": "^4.17.17",
