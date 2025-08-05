@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: ecobreack-backend
+    env: node
+    buildCommand: npm install && npm run build
+    startCommand: npm run start
+    nodeVersion: 18.17.0
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 4300
+    healthCheckPath: /health
