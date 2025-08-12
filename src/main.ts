@@ -72,7 +72,7 @@ async function bootstrap() {
     // Configuración de CORS para producción
     app.enableCors({
       origin: [
-        'https://backeco.onrender.com',
+        'https://tu-frontend-url.onrender.com',
         'http://localhost:3000',
         'http://localhost:4300'
       ],
