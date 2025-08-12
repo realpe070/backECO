@@ -6,6 +6,7 @@ import { HttpExceptionFilter } from './filters/http-exception.filter';
 import { TransformInterceptor } from './interceptors/transform.interceptor';
 import { Logger } from '@nestjs/common';
 import cors from 'cors';  // Actualizado para usar import ES6
+import { Request, Response } from 'express';
 
 function getNetworkInfo() {
   const interfaces = os.networkInterfaces();
@@ -68,6 +69,11 @@ async function bootstrap() {
     const networkIP = getNetworkInfo();
     const logger = new Logger('Bootstrap');
     const environment = configService.get('NODE_ENV') || 'development';
+
+    // Agregar endpoint de health con tipos correctos
+    app.getHttpAdapter().get('/health', (req: Request, res: Response) => {
+      res.status(200).json({ status: 'ok' });
+    });
 
     // Configuración de CORS para producción
     app.enableCors({
