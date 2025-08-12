@@ -1,8 +1,8 @@
-import { Controller, Get } from '@nestjs/common';
+import { Controller, Get, Options } from '@nestjs/common';
 
-@Controller()
+@Controller('health')
 export class HealthController {
-  @Get('health')
+  @Get()
   getHealth() {
     return {
       status: true,
@@ -11,5 +11,10 @@ export class HealthController {
       service: 'mobile-app-backend',
       environment: process.env.NODE_ENV || 'development',
     };
+  }
+
+  @Options()
+  handleOptions() {
+    return { status: 204 };
   }
 }

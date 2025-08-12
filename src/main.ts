@@ -5,7 +5,7 @@ import * as os from 'os';
 import { HttpExceptionFilter } from './filters/http-exception.filter';
 import { TransformInterceptor } from './interceptors/transform.interceptor';
 import { Logger } from '@nestjs/common';
-import cors from 'cors';  // Actualizado para usar import ES6
+import cors = require('cors'); // Updated to use require syntax
 import { Request, Response } from 'express';
 
 function getNetworkInfo() {
@@ -70,29 +70,15 @@ async function bootstrap() {
     const logger = new Logger('Bootstrap');
     const environment = configService.get('NODE_ENV') || 'development';
 
-    // Configuración CORS mejorada
-    app.enableCors({
-      origin: [
-        'http://localhost:61602',    // Flutter Web local - puerto específico
-        'http://localhost:4200',     // Puerto alternativo
-        /^http:\/\/localhost:\d+$/,  // Cualquier puerto en localhost
-        'https://sst-admin.web.app', // URL de producción
-      ],
+    // CORS configuration
+    app.use(cors({
+      origin: ['http://localhost:3000', 'http://localhost:63294', 'https://backeco.onrender.com'],
       methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
-      allowedHeaders: [
-        'Content-Type',
-        'Authorization',
-        'Accept',
-        'Origin',
-        'X-Requested-With',
-      ],
-      exposedHeaders: ['Content-Range', 'X-Content-Range'],
       credentials: true,
-      preflightContinue: false,
-      optionsSuccessStatus: 204,
-    });
+      allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'Origin'],
+    }));
 
-    // Health check endpoint antes de cualquier middleware o configuración
+    // Health check endpoint before any middleware or configuration
     app.use('/health', (req: Request, res: Response) => {
       res.json({
         status: true,
@@ -103,14 +89,14 @@ async function bootstrap() {
       });
     });
 
-    // Configuración de prefijo global para la API
+    // Prefix all routes with /api
     app.setGlobalPrefix('api');
 
     // Optimizations for production
     if (process.env.NODE_ENV === 'production') {
       app.enableShutdownHooks();
     } else {
-      // Middleware mejorado para autenticación y CORS
+      // Enhanced middleware for authentication and CORS
       app.use((req: any, res: any, next: any) => {
         res.header('Access-Control-Allow-Origin', '*');
         res.header('Access-Control-Allow-Credentials', 'true');
@@ -120,14 +106,14 @@ async function bootstrap() {
           'Content-Type, Accept, Authorization, x-client-type, Origin, Access-Control-Allow-Origin, X-Requested-With'
         );
 
-        // Manejo especial para preflight requests
+        // Special handling for preflight requests
         if (req.method === 'OPTIONS') {
           res.header('Access-Control-Max-Age', '3600');
           res.status(204).end();
           return;
         }
 
-        // Logging de token para debugging
+        // Token logging for debugging
         const token = req.headers.authorization;
         if (token) {
           logger.debug(`🔑 Token received: ${token.substring(0, 20)}...`);
@@ -136,7 +122,7 @@ async function bootstrap() {
         next();
       });
 
-      // Middleware para logging mejorado
+      // Enhanced middleware for logging
       app.use((req: any, res: any, next: any) => {
         const clientType = req.headers['x-client-type'] || 'unknown';
         const origin = req.headers.origin || 'unknown';

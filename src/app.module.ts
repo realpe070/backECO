@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, MiddlewareConsumer, RequestMethod } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { UserModule } from './processes/user/user.module';
 import { AuthModule } from './processes/auth/auth.module';
@@ -9,6 +9,8 @@ import { HealthAppController } from './controllers/health-app.controller';
 import { NetworkInfoController } from './controllers/network-info.controller';
 import { DriveService } from './services/drive.service';
 import { DriveController } from './controllers/drive.controller';
+import { CorsMiddleware } from './middleware/cors.middleware';
+import { GlobalMiddleware } from './middleware/global.middleware';
 
 @Module({
   imports: [
@@ -28,4 +30,10 @@ import { DriveController } from './controllers/drive.controller';
     DriveService,
   ],
 })
-export class AppModule { }
+export class AppModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer
+      .apply(GlobalMiddleware)
+      .forRoutes({ path: '*', method: RequestMethod.ALL });
+  }
+}
