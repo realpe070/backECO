@@ -70,15 +70,26 @@ async function bootstrap() {
     const logger = new Logger('Bootstrap');
     const environment = configService.get('NODE_ENV') || 'development';
 
-    // Configurar CORS antes que cualquier otro middleware
+    // Configuración CORS mejorada
     app.enableCors({
       origin: [
-        'http://localhost:3000',     // Flutter web en desarrollo
-        'http://localhost:4200',     // Flutter web alternativo
-        'https://sst-admin.web.app', // Flutter web en producción
+        'http://localhost:61602',    // Flutter Web local - puerto específico
+        'http://localhost:4200',     // Puerto alternativo
+        /^http:\/\/localhost:\d+$/,  // Cualquier puerto en localhost
+        'https://sst-admin.web.app', // URL de producción
       ],
-      methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
+      methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
+      allowedHeaders: [
+        'Content-Type',
+        'Authorization',
+        'Accept',
+        'Origin',
+        'X-Requested-With',
+      ],
+      exposedHeaders: ['Content-Range', 'X-Content-Range'],
       credentials: true,
+      preflightContinue: false,
+      optionsSuccessStatus: 204,
     });
 
     // Health check endpoint antes de cualquier middleware o configuración
@@ -98,39 +109,7 @@ async function bootstrap() {
     // Optimizations for production
     if (process.env.NODE_ENV === 'production') {
       app.enableShutdownHooks();
-      app.enableCors({
-        origin: [
-          'http://localhost:3000',
-          'http://localhost:8080',
-          'http://localhost:4200',
-          'https://ecoadmin.onrender.com',  // Ajusta según tu dominio real del admin
-          'https://ecoapp.onrender.com'     // Ajusta según tu dominio real de la app
-        ],
-        methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
-        credentials: true,
-        allowedHeaders: ['Content-Type', 'Accept', 'Authorization'],
-      });
     } else {
-      // Actualizar configuración CORS
-      app.enableCors({
-        origin: '*',
-        methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
-        allowedHeaders: [
-          'Content-Type',
-          'Accept',
-          'Authorization',
-          'x-client-type',
-          'Origin',
-          'Access-Control-Allow-Origin',
-          'Access-Control-Allow-Credentials',
-          'Access-Control-Allow-Methods',
-          'X-Requested-With'
-        ],
-        exposedHeaders: ['Authorization'],
-        credentials: true,
-        maxAge: 3600
-      });
-
       // Middleware mejorado para autenticación y CORS
       app.use((req: any, res: any, next: any) => {
         res.header('Access-Control-Allow-Origin', '*');
