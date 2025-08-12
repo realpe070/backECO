@@ -72,7 +72,13 @@ async function bootstrap() {
 
     // Health check endpoint antes de cualquier middleware o configuración
     app.use('/health', (req: Request, res: Response) => {
-      res.status(200).json({ status: 'ok' });
+      res.json({
+        status: true,
+        message: 'Backend server is running',
+        timestamp: new Date().toISOString(),
+        service: 'mobile-app-backend',
+        environment: process.env.NODE_ENV || 'development'
+      });
     });
 
     // Configuración de CORS
