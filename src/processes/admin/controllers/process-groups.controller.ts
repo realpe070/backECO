@@ -1,22 +1,22 @@
-import { 
-  Controller, 
-  Get, 
-  Post, 
-  Put, 
-  Delete, 
-  Body, 
-  Param, 
+import {
+  Controller,
+  Get,
+  Post,
+  Put,
+  Delete,
+  Body,
+  Param,
   UseGuards,
   Logger,
   HttpException,
-  HttpStatus 
+  HttpStatus
 } from '@nestjs/common';
 import { FirebaseAuthGuard } from '../../auth/guards/firebase-auth.guard';
 import { ProcessGroupService } from '../services_admin/process-group.service';
-import { 
-  CreateProcessGroupDto, 
-  UpdateProcessGroupDto, 
-  UpdateProcessGroupMembersDto 
+import {
+  CreateProcessGroupDto,
+  UpdateProcessGroupDto,
+  UpdateProcessGroupMembersDto
 } from '../dto/process-group.dto';
 import { ApiTags, ApiResponse } from '@nestjs/swagger';
 
@@ -26,7 +26,7 @@ import { ApiTags, ApiResponse } from '@nestjs/swagger';
 export class ProcessGroupsController {
   private readonly logger = new Logger(ProcessGroupsController.name);
 
-  constructor(private readonly processGroupService: ProcessGroupService) {}
+  constructor(private readonly processGroupService: ProcessGroupService) { }
 
   @Get()
   @ApiResponse({ status: 200, description: 'Lista de grupos obtenida correctamente' })
@@ -86,19 +86,25 @@ export class ProcessGroupsController {
   }
 
   @Delete(':id')
-  @ApiResponse({ status: 200, description: 'Grupo eliminado correctamente' })
-  async deleteProcessGroup(@Param('id') id: string) {
+  @ApiResponse({ status: 200, description: 'Grupo eliminado exitosamente' })
+  async deleteGroup(@Param('id') id: string) {
     try {
-      await this.processGroupService.deleteProcessGroup(id);
+      this.logger.debug(`🗑️ Deleting process group: ${id}`);
+      await this.processGroupService.deleteGroup(id);
       return {
         status: true,
-        message: 'Grupo eliminado correctamente',
+        message: 'Grupo eliminado exitosamente'
       };
     } catch (error) {
-      throw new HttpException({
-        status: false,
-        message: error instanceof Error ? error.message : 'Error deleting group',
-      }, HttpStatus.INTERNAL_SERVER_ERROR);
+      this.logger.error('Error deleting process group:', error);
+      throw new HttpException(
+        {
+          status: false,
+          message: error instanceof Error ? error.message : 'Error desconocido',
+          error: 'PROCESS_GROUP_DELETE_ERROR'
+        },
+        HttpStatus.INTERNAL_SERVER_ERROR
+      );
     }
   }
 

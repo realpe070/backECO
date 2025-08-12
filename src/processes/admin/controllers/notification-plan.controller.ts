@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Put, Body, Param, UseGuards, Logger, HttpException, HttpStatus, Req } from '@nestjs/common';
+import { Controller, Post, Get, Put, Delete, Body, Param, UseGuards, Logger, HttpException, HttpStatus, Req } from '@nestjs/common';
 import { FirebaseAuthGuard } from '../../auth/guards/firebase-auth.guard';
 import { NotificationPlanService } from '../services_admin/notification-plan.service';
 import { NotificationPlanDto } from '../dto/notification-plan.dto';
@@ -11,7 +11,7 @@ import { Request } from 'express';
 export class NotificationPlanController {
   private readonly logger = new Logger(NotificationPlanController.name);
 
-  constructor(private readonly notificationPlanService: NotificationPlanService) {}
+  constructor(private readonly notificationPlanService: NotificationPlanService) { }
 
   @Post()
   @ApiResponse({ status: 201, description: 'Plan de notificación creado' })
@@ -30,7 +30,7 @@ export class NotificationPlanController {
     try {
       this.logger.debug(`🔍 Getting notification plans for user: ${request.user?.email}`);
       const plans = await this.notificationPlanService.getNotificationPlans();
-      
+
       return {
         status: true,
         message: 'Planes obtenidos exitosamente',
@@ -61,6 +61,17 @@ export class NotificationPlanController {
       status: true,
       message: 'Estado del plan actualizado exitosamente',
       data: plan
+    };
+  }
+
+  @Delete(':id')
+  @ApiResponse({ status: 200, description: 'Plan de notificación eliminado' })
+  async deletePlan(@Param('id') id: string) {
+    this.logger.debug(`🗑️ Deleting notification plan: ${id}`);
+    await this.notificationPlanService.deletePlan(id);
+    return {
+      status: true,
+      message: 'Plan de notificación eliminado exitosamente'
     };
   }
 }

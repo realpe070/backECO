@@ -5,6 +5,7 @@ import * as os from 'os';
 import { HttpExceptionFilter } from './filters/http-exception.filter';
 import { TransformInterceptor } from './interceptors/transform.interceptor';
 import { Logger } from '@nestjs/common';
+import cors from 'cors';  // Actualizado para usar import ES6
 
 function getNetworkInfo() {
   const interfaces = os.networkInterfaces();
@@ -66,16 +67,37 @@ async function bootstrap() {
     const configService = app.get(ConfigService);
     const networkIP = getNetworkInfo();
     const logger = new Logger('Bootstrap');
-    const port = configService.get('PORT') || 4300;
     const environment = configService.get('NODE_ENV') || 'development';
+
+    // Configuración de CORS para producción
+    app.enableCors({
+      origin: [
+        'https://backeco.onrender.com',
+        'http://localhost:3000',
+        'http://localhost:4300'
+      ],
+      methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+      allowedHeaders: ['Content-Type', 'Authorization'],
+      credentials: true
+    });
+
+    // Configuración de prefijo global para la API
+    app.setGlobalPrefix('api');
 
     // Optimizations for production
     if (process.env.NODE_ENV === 'production') {
       app.enableShutdownHooks();
       app.enableCors({
-        origin: process.env.CORS_ORIGINS?.split(',') || '*',
+        origin: [
+          'http://localhost:3000',
+          'http://localhost:8080',
+          'http://localhost:4200',
+          'https://ecoadmin.onrender.com',  // Ajusta según tu dominio real del admin
+          'https://ecoapp.onrender.com'     // Ajusta según tu dominio real de la app
+        ],
         methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
         credentials: true,
+        allowedHeaders: ['Content-Type', 'Accept', 'Authorization'],
       });
     } else {
       // Actualizar configuración CORS
@@ -138,14 +160,15 @@ async function bootstrap() {
 
     console.log(`
 🔍 Server Configuration:
-- Public URL: http://${networkIP}:${port}
-- Local URL: http://localhost:${port}
+- Public URL: http://${networkIP}:${process.env.PORT || 4300}
+- Local URL: http://localhost:${process.env.PORT || 4300}
 - Environment: ${environment}
 - Admin Email: ${configService.get('ADMIN_EMAIL')}
 - Firebase Project: ${configService.get('FIREBASE_PROJECT_ID')}
     `);
 
-    await app.listen(port, '0.0.0.0');
+    const serverPort = process.env.PORT || 4300;
+    await app.listen(serverPort, '0.0.0.0');
     logger.log(`🚀 Application is running on: ${await app.getUrl()}`);
   } catch (error) {
     console.error('❌ Server startup error:', error);

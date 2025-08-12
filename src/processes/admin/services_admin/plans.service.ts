@@ -1,6 +1,7 @@
 import { Injectable, Logger, BadRequestException } from '@nestjs/common';
 import { FirebaseService } from '../../../firebase/firebase.service';
 import { CreatePlanDto, Plan } from '../dto/plan.dto';
+import { PlanActivityDto } from '../dto/plan-activity.dto';
 
 @Injectable()
 export class PlansService {
@@ -10,19 +11,38 @@ export class PlansService {
 
   async createPlan(createPlanDto: CreatePlanDto): Promise<Plan> {
     try {
-      this.logger.debug('Creando nuevo plan:');
       this.logger.debug(JSON.stringify(createPlanDto));
 
       const db = this.firebaseService.getFirestore();
       const planRef = db.collection('plans');
 
-      const planData = createPlanDto.toFirestore();
+      const now = new Date().toISOString();
+
+      // Crear actividades con el constructor de PlanActivityDto
+      const activities = createPlanDto.activities.map(activity =>
+        new PlanActivityDto(activity.activityId, activity.order)
+      );
+
+      const planData = {
+        name: createPlanDto.name,
+        description: createPlanDto.description,
+        activities: activities.map(activity => activity.toJSON()),
+        createdAt: now,
+        updatedAt: now,
+        status: 'active'
+      };
+
       const docRef = await planRef.add(planData);
 
       return {
         id: docRef.id,
-        ...planData
-      } as Plan;
+        name: planData.name,
+        description: planData.description,
+        activities: activities,
+        createdAt: planData.createdAt,
+        updatedAt: planData.updatedAt,
+        status: planData.status
+      };
     } catch (error) {
       this.logger.error('Error creando plan:', error);
       throw error;
@@ -77,13 +97,8 @@ export class PlansService {
     try {
       this.logger.debug('Actualizando plan:', { id, data: updatePlanDto });
 
-      // Validate activities
       if (!id) {
         throw new BadRequestException('El ID del plan es requerido');
-      }
-
-      if (updatePlanDto.activities.some(activity => !activity.activityId)) {
-        throw new BadRequestException('Todas las actividades deben tener un ID válido');
       }
 
       const db = this.firebaseService.getFirestore();
@@ -95,32 +110,58 @@ export class PlansService {
         throw new BadRequestException('Plan no encontrado');
       }
 
-      // Verify all activities exist
-      const activitiesRef = db.collection('activities');
-      const activityIds = updatePlanDto.activities.map(a => a.activityId);
+      const now = new Date().toISOString();
 
-      const activityDocs = await Promise.all(
-        activityIds.map(actId => activitiesRef.doc(actId).get())
+      // Crear actividades con el constructor de PlanActivityDto
+      const activities = updatePlanDto.activities.map(activity =>
+        new PlanActivityDto(activity.activityId, activity.order)
       );
 
-      if (activityDocs.some(doc => !doc.exists)) {
-        throw new BadRequestException('Una o más actividades no existen');
-      }
-
-      const now = new Date().toISOString();
       const planData = {
-        ...updatePlanDto,
+        name: updatePlanDto.name,
+        description: updatePlanDto.description,
+        activities: activities.map(activity => activity.toJSON()),
         updatedAt: now,
       };
 
       await planRef.update(planData);
+      const existingData = planDoc.data();
 
       return {
         id,
         ...planData,
+        createdAt: existingData?.createdAt || now,
+        status: existingData?.status || 'active'
       } as Plan;
     } catch (error) {
       this.logger.error('Error actualizando plan:', error);
+      throw error;
+    }
+  }
+
+  async deletePlan(id: string): Promise<void> {
+    try {
+      this.logger.debug('Eliminando plan:', id);
+
+      if (!id) {
+        throw new BadRequestException('El ID del plan es requerido');
+      }
+
+      const db = this.firebaseService.getFirestore();
+      const planRef = db.collection('plans').doc(id);
+
+      // Verificar que el plan existe
+      const planDoc = await planRef.get();
+      if (!planDoc.exists) {
+        throw new BadRequestException('Plan no encontrado');
+      }
+
+      // Eliminar el plan
+      await planRef.delete();
+
+      this.logger.debug('Plan eliminado exitosamente');
+    } catch (error) {
+      this.logger.error('Error eliminando plan:', error);
       throw error;
     }
   }

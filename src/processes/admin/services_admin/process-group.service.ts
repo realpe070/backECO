@@ -1,4 +1,4 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
 import { FirebaseService } from '../../../firebase/firebase.service';
 import { CreateProcessGroupDto, UpdateProcessGroupDto, UpdateProcessGroupMembersDto } from '../dto/process-group.dto';
 
@@ -6,7 +6,7 @@ import { CreateProcessGroupDto, UpdateProcessGroupDto, UpdateProcessGroupMembers
 export class ProcessGroupService {
   private readonly logger = new Logger(ProcessGroupService.name);
 
-  constructor(private readonly firebaseService: FirebaseService) {}
+  constructor(private readonly firebaseService: FirebaseService) { }
 
   async getProcessGroups() {
     try {
@@ -75,23 +75,6 @@ export class ProcessGroupService {
     }
   }
 
-  async deleteProcessGroup(id: string) {
-    try {
-      const db = this.firebaseService.getFirestore();
-      const groupRef = db.collection('processGroups').doc(id);
-
-      const doc = await groupRef.get();
-      if (!doc.exists) {
-        throw new NotFoundException('Grupo no encontrado');
-      }
-
-      await groupRef.delete();
-    } catch (error) {
-      this.logger.error('Error deleting process group:', error);
-      throw error;
-    }
-  }
-
   async updateGroupMembers(id: string, data: UpdateProcessGroupMembersDto) {
     try {
       const db = this.firebaseService.getFirestore();
@@ -116,6 +99,32 @@ export class ProcessGroupService {
       };
     } catch (error) {
       this.logger.error('Error updating group members:', error);
+      throw error;
+    }
+  }
+
+  async deleteGroup(id: string): Promise<void> {
+    try {
+      this.logger.debug(`🗑️ Attempting to delete process group: ${id}`);
+
+      if (!id || id.trim().length === 0) {
+        throw new BadRequestException('ID del grupo no proporcionado o inválido');
+      }
+
+      const db = this.firebaseService.getFirestore();
+      const groupRef = db.collection('processGroups').doc(id.trim());
+
+      // Verificar que el grupo existe
+      const doc = await groupRef.get();
+      if (!doc.exists) {
+        throw new NotFoundException(`Grupo con ID ${id} no encontrado`);
+      }
+
+      // Eliminar el grupo
+      await groupRef.delete();
+      this.logger.log(`✅ Grupo ${id} eliminado exitosamente`);
+    } catch (error) {
+      this.logger.error('❌ Error deleting process group:', error);
       throw error;
     }
   }

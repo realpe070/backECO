@@ -1,4 +1,6 @@
 import { Module } from '@nestjs/common';
+import { ScheduleModule } from '@nestjs/schedule';
+import { CronJob } from 'cron';
 import { AdminController } from './admin.controller';
 import { AdminService } from './services_admin/admin.service';
 import { FirebaseModule } from '../../firebase/firebase.module';
@@ -15,9 +17,13 @@ import { ProcessGroupService } from './services_admin/process-group.service';
 import { ProcessUploadController } from './controllers/process-upload.controller';
 import { ProcessUploadService } from './services_admin/process-upload.service';
 import { SyncService } from '../../services/sync.service';
+import { ActivitiesService } from './services_admin/activities.service';
 
 @Module({
-  imports: [FirebaseModule],
+  imports: [
+    FirebaseModule,
+    ScheduleModule.forRoot(),
+  ],
   controllers: [
     AdminController,
     ActivitiesController,
@@ -30,12 +36,27 @@ import { SyncService } from '../../services/sync.service';
   providers: [
     AdminService,
     DriveService,
+    ActivitiesService,
     PlansService,
     HistoryService,
     NotificationPlanService,
     ProcessGroupService,
     ProcessUploadService,
     SyncService,
+    {
+      provide: 'CLEANUP_SCHEDULE',
+      useFactory: (notificationPlanService: NotificationPlanService) => {
+        // Ejecutar limpieza cada día a las 00:00
+        const job = new CronJob('0 0 * * *', () => {
+          notificationPlanService
+            .cleanExpiredPlans()
+            .catch(error => console.error('Error en limpieza programada:', error));
+        });
+        job.start();
+        return job;
+      },
+      inject: [NotificationPlanService],
+    },
   ],
   exports: [AdminService, PlansService, HistoryService, NotificationPlanService, ProcessGroupService, ProcessUploadService, SyncService],
 })

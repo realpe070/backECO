@@ -5,11 +5,11 @@ export class PlanActivityDto {
     @ApiProperty({ description: 'ID de la actividad' })
     @IsString()
     @IsNotEmpty()
-    activityId!: string;
+    activityId: string;
 
     @ApiProperty({ description: 'Orden de la actividad en el plan' })
     @IsNumber()
-    order!: number;
+    order: number;
 
     constructor(activityId: string, order: number) {
         this.activityId = activityId;

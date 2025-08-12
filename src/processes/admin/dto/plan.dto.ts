@@ -39,25 +39,6 @@ export class CreatePlanDto {
   @IsOptional()
   @IsDateString()
   updatedAt?: string;
-
-  constructor(name: string, description: string, activities: PlanActivityDto[]) {
-    this.name = name;
-    this.description = description;
-    this.activities = activities;
-    this.createdAt = new Date().toISOString();
-    this.updatedAt = new Date().toISOString();
-  }
-
-  toFirestore() {
-    return {
-      name: this.name,
-      description: this.description,
-      activities: this.activities.map(activity => activity.toJSON()),
-      createdAt: this.createdAt || new Date().toISOString(),
-      updatedAt: this.updatedAt || new Date().toISOString(),
-      status: 'active'
-    };
-  }
 }
 
 export class UpdatePlanDto extends CreatePlanDto { }

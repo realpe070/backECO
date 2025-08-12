@@ -8,13 +8,13 @@ import * as admin from 'firebase-admin';
 export class ProcessUploadService {
   private readonly logger = new Logger(ProcessUploadService.name);
 
-  constructor(private readonly firebaseService: FirebaseService) {}
+  constructor(private readonly firebaseService: FirebaseService) { }
 
-  async uploadProcess(data: ProcessUploadDto): Promise<{ id: string; [key: string]: any }> {
+  async uploadProcess(data: ProcessUploadDto): Promise<{ id: string;[key: string]: any }> {
     const db = this.firebaseService.getFirestore();
     let batch = db.batch();
     let processRef: admin.firestore.DocumentReference | null = null;
-    let collectedPlans: { id: string; [key: string]: any }[] = [];
+    let collectedPlans: { id: string;[key: string]: any }[] = [];
 
     try {
       this.logger.log('🔄 Starting process upload...');
@@ -31,7 +31,7 @@ export class ProcessUploadService {
       );
 
       const invalidPlans: string[] = [];
-      const validPlans: { id: string; [key: string]: any }[] = [];
+      const validPlans: { id: string;[key: string]: any }[] = [];
 
       planSnapshots.forEach((doc, index) => {
         const planId = data.pausePlanIds[index];
@@ -116,7 +116,7 @@ export class ProcessUploadService {
 
   private async revertChanges(
     db: admin.firestore.Firestore,
-    plans: { id: string; [key: string]: any }[],
+    plans: { id: string;[key: string]: any }[],
     processRef: admin.firestore.DocumentReference | null
   ): Promise<void> {
     try {
@@ -147,14 +147,14 @@ export class ProcessUploadService {
     groupName: string;
     startDate: string;
     status: string;
-    plans: { id: string; [key: string]: any }[];
+    plans: { id: string;[key: string]: any }[];
     createdAt: string;
     updatedAt: string;
   }[]> {
     try {
       this.logger.debug('Fetching active processes...');
       const db = this.firebaseService.getFirestore();
-      
+
       const snapshot = await db.collection('processes').get();
 
       this.logger.debug(`Found ${snapshot.size} total processes`);
@@ -164,7 +164,7 @@ export class ProcessUploadService {
           id: doc.id,
           ...(doc.data() as Omit<Process, 'id'>)
         }))
-        .filter((process): process is Process => 
+        .filter((process): process is Process =>
           process.status === 'active' || process.status === 'scheduled'
         );
 
@@ -190,7 +190,7 @@ export class ProcessUploadService {
         })
       );
 
-      return processesWithGroups.sort((a, b) => 
+      return processesWithGroups.sort((a, b) =>
         new Date(b.startDate).getTime() - new Date(a.startDate).getTime()
       );
     } catch (error) {
@@ -203,10 +203,10 @@ export class ProcessUploadService {
     try {
       this.logger.debug(`Deactivating process ${processId}...`);
       const db = this.firebaseService.getFirestore();
-      
+
       const processRef = db.collection('processes').doc(processId);
       const processDoc = await processRef.get();
-      
+
       if (!processDoc.exists) {
         throw new NotFoundException('Proceso no encontrado');
       }
@@ -214,13 +214,13 @@ export class ProcessUploadService {
       const batch = db.batch();
 
       // Actualizar estado del proceso
-      batch.update(processRef, { 
+      batch.update(processRef, {
         status: 'inactive',
         updatedAt: new Date().toISOString()
       });
 
       // Marcar los planes como "disponibles"
-      const process = processDoc.data() as { pausePlans: { id: string; [key: string]: any }[] };
+      const process = processDoc.data() as { pausePlans: { id: string;[key: string]: any }[] };
       if (process?.pausePlans) {
         for (const plan of process.pausePlans) {
           const planRef = db.collection('plans').doc(plan.id);
@@ -239,7 +239,7 @@ export class ProcessUploadService {
   async assignProcess(processId: string, userId: string) {
     try {
       const db = this.firebaseService.getFirestore();
-      
+
       const processDoc = await db.collection('processes').doc(processId).get();
       if (!processDoc.exists) {
         this.logger.error(`Process ${processId} not found`);

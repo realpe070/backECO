@@ -1,6 +1,6 @@
-import { Controller, Post, Get, Body, UseGuards, Logger, Query } from '@nestjs/common';
+import { Controller, Post, Body, Get, Put, Delete, Param, Query, UseGuards, Logger, HttpException, HttpStatus } from '@nestjs/common';
 import { PlansService } from '../services_admin/plans.service';
-import { CreatePlanDto } from '../dto/plan.dto'; // Actualizar importación
+import { CreatePlanDto } from '../dto/plan.dto';
 import { AdminAuthGuard } from '../guards/admin-auth.guard';
 
 @Controller('admin/plans')
@@ -21,9 +21,16 @@ export class PlansController {
         message: 'Plan creado exitosamente',
         data: plan
       };
-    } catch (error) {
+    } catch (error: any) {
       this.logger.error('Error creando plan:', error);
-      throw error;
+      throw new HttpException(
+        {
+          status: false,
+          message: 'Error al crear el plan',
+          error: error?.message || 'Error desconocido'
+        },
+        HttpStatus.INTERNAL_SERVER_ERROR
+      );
     }
   }
 
@@ -41,6 +48,53 @@ export class PlansController {
     } catch (error) {
       this.logger.error('Error obteniendo planes:', error);
       throw error;
+    }
+  }
+
+  @Put(':id')
+  async updatePlan(@Param('id') id: string, @Body() updatePlanDto: CreatePlanDto) {
+    try {
+      this.logger.log(`📝 Actualizando plan: ${id}`);
+      const plan = await this.plansService.updatePlan(id, updatePlanDto);
+
+      return {
+        status: true,
+        message: 'Plan actualizado exitosamente',
+        data: plan
+      };
+    } catch (error: any) {
+      this.logger.error('Error actualizando plan:', error);
+      throw new HttpException(
+        {
+          status: false,
+          message: 'Error al actualizar el plan',
+          error: error?.message || 'Error desconocido'
+        },
+        HttpStatus.INTERNAL_SERVER_ERROR
+      );
+    }
+  }
+
+  @Delete(':id')
+  async deletePlan(@Param('id') id: string) {
+    try {
+      this.logger.log(`🗑️ Eliminando plan: ${id}`);
+      await this.plansService.deletePlan(id);
+
+      return {
+        status: true,
+        message: 'Plan eliminado exitosamente'
+      };
+    } catch (error: any) {
+      this.logger.error('Error eliminando plan:', error);
+      throw new HttpException(
+        {
+          status: false,
+          message: 'Error al eliminar el plan',
+          error: error?.message || 'Error desconocido'
+        },
+        HttpStatus.INTERNAL_SERVER_ERROR
+      );
     }
   }
 }
