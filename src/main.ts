@@ -70,13 +70,22 @@ async function bootstrap() {
     const logger = new Logger('Bootstrap');
     const environment = configService.get('NODE_ENV') || 'development';
 
-    // CORS configuration
-    app.use(cors({
-      origin: ['http://localhost:3000', 'http://localhost:63294', 'https://backeco.onrender.com'],
-      methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
-      credentials: true,
+    // Procesar CORS_ORIGIN - permite múltiples orígenes separados por coma
+    const corsOrigins = process.env.CORS_ORIGIN
+      ? process.env.CORS_ORIGIN.split(',').map(origin => origin.trim())
+      : ['*'];
+
+    logger.log(`🔒 CORS habilitado para: ${corsOrigins.join(', ')}`);
+
+    // Configurar CORS
+    app.enableCors({
+      origin: corsOrigins,
+      methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
       allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'Origin'],
-    }));
+      credentials: true,
+      preflightContinue: false,
+      optionsSuccessStatus: 204
+    });
 
     // Health check endpoint before any middleware or configuration
     app.use('/health', (req: Request, res: Response) => {
