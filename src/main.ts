@@ -70,21 +70,16 @@ async function bootstrap() {
     const logger = new Logger('Bootstrap');
     const environment = configService.get('NODE_ENV') || 'development';
 
-    // Agregar endpoint de health con tipos correctos
-    app.getHttpAdapter().get('/health', (req: Request, res: Response) => {
+    // Health check endpoint antes de cualquier middleware o configuración
+    app.use('/health', (req: Request, res: Response) => {
       res.status(200).json({ status: 'ok' });
     });
 
-    // Configuración de CORS para producción
+    // Configuración de CORS
     app.enableCors({
-      origin: [
-        'https://tu-frontend-url.onrender.com',
-        'http://localhost:3000',
-        'http://localhost:4300'
-      ],
-      methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-      allowedHeaders: ['Content-Type', 'Authorization'],
-      credentials: true
+      origin: true,
+      methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
+      credentials: true,
     });
 
     // Configuración de prefijo global para la API
