@@ -70,6 +70,17 @@ async function bootstrap() {
     const logger = new Logger('Bootstrap');
     const environment = configService.get('NODE_ENV') || 'development';
 
+    // Configurar CORS antes que cualquier otro middleware
+    app.enableCors({
+      origin: [
+        'http://localhost:3000',     // Flutter web en desarrollo
+        'http://localhost:4200',     // Flutter web alternativo
+        'https://sst-admin.web.app', // Flutter web en producción
+      ],
+      methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
+      credentials: true,
+    });
+
     // Health check endpoint antes de cualquier middleware o configuración
     app.use('/health', (req: Request, res: Response) => {
       res.json({
@@ -79,13 +90,6 @@ async function bootstrap() {
         service: 'mobile-app-backend',
         environment: process.env.NODE_ENV || 'development'
       });
-    });
-
-    // Configuración de CORS
-    app.enableCors({
-      origin: true,
-      methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
-      credentials: true,
     });
 
     // Configuración de prefijo global para la API
