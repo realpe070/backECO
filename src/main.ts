@@ -5,8 +5,7 @@ import * as os from 'os';
 import { HttpExceptionFilter } from './filters/http-exception.filter';
 import { TransformInterceptor } from './interceptors/transform.interceptor';
 import { Logger } from '@nestjs/common';
-import cors = require('cors'); // Updated to use require syntax
-import { Request, Response } from 'express';
+import cors from 'cors';  // Actualizado para usar import ES6
 
 function getNetworkInfo() {
   const interfaces = os.networkInterfaces();
@@ -70,42 +69,52 @@ async function bootstrap() {
     const logger = new Logger('Bootstrap');
     const environment = configService.get('NODE_ENV') || 'development';
 
-    // Procesar CORS_ORIGIN - permite múltiples orígenes separados por coma
-    const corsOrigins = process.env.CORS_ORIGIN
-      ? process.env.CORS_ORIGIN.split(',').map(origin => origin.trim())
-      : ['*'];
-
-    logger.log(`🔒 CORS habilitado para: ${corsOrigins.join(', ')}`);
-
-    // Configurar CORS
+    // Configuración de CORS para producción
     app.enableCors({
-      origin: corsOrigins,
-      methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
-      allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'Origin'],
-      credentials: true,
-      preflightContinue: false,
-      optionsSuccessStatus: 204
+      origin: [
+        '*',
+      ],
+      methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+      allowedHeaders: ['Content-Type', 'Authorization'],
+      credentials: true
     });
 
-    // Health check endpoint before any middleware or configuration
-    app.use('/health', (req: Request, res: Response) => {
-      res.json({
-        status: true,
-        message: 'Backend server is running',
-        timestamp: new Date().toISOString(),
-        service: 'mobile-app-backend',
-        environment: process.env.NODE_ENV || 'development'
-      });
-    });
-
-    // Prefix all routes with /api
+    // Configuración de prefijo global para la API
     app.setGlobalPrefix('api');
 
     // Optimizations for production
     if (process.env.NODE_ENV === 'production') {
       app.enableShutdownHooks();
+      app.enableCors({
+        origin: [
+          '*',    // Ajusta según tu dominio real de la app
+        ],
+        methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
+        credentials: true,
+        allowedHeaders: ['Content-Type', 'Accept', 'Authorization'],
+      });
     } else {
-      // Enhanced middleware for authentication and CORS
+      // Actualizar configuración CORS
+      app.enableCors({
+        origin: '*',
+        methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
+        allowedHeaders: [
+          'Content-Type',
+          'Accept',
+          'Authorization',
+          'x-client-type',
+          'Origin',
+          'Access-Control-Allow-Origin',
+          'Access-Control-Allow-Credentials',
+          'Access-Control-Allow-Methods',
+          'X-Requested-With'
+        ],
+        exposedHeaders: ['Authorization'],
+        credentials: true,
+        maxAge: 3600
+      });
+
+      // Middleware mejorado para autenticación y CORS
       app.use((req: any, res: any, next: any) => {
         res.header('Access-Control-Allow-Origin', '*');
         res.header('Access-Control-Allow-Credentials', 'true');
@@ -115,14 +124,14 @@ async function bootstrap() {
           'Content-Type, Accept, Authorization, x-client-type, Origin, Access-Control-Allow-Origin, X-Requested-With'
         );
 
-        // Special handling for preflight requests
+        // Manejo especial para preflight requests
         if (req.method === 'OPTIONS') {
           res.header('Access-Control-Max-Age', '3600');
           res.status(204).end();
           return;
         }
 
-        // Token logging for debugging
+        // Logging de token para debugging
         const token = req.headers.authorization;
         if (token) {
           logger.debug(`🔑 Token received: ${token.substring(0, 20)}...`);
@@ -131,7 +140,7 @@ async function bootstrap() {
         next();
       });
 
-      // Enhanced middleware for logging
+      // Middleware para logging mejorado
       app.use((req: any, res: any, next: any) => {
         const clientType = req.headers['x-client-type'] || 'unknown';
         const origin = req.headers.origin || 'unknown';
