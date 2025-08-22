@@ -4,12 +4,26 @@ import cors from 'cors';
 
 dotenv.config();
 
-// CORS configuration for testing
+// Update CORS options
 export const corsOptions = {
-    origin: '*',
-    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
+    origin: [
+        'http://localhost:3000',
+        'http://localhost:4300',
+        'http://localhost:59055',
+        'http://localhost:62878',
+        'https://ecoadmin.onrender.com',
+        'https://ecoapp.onrender.com'
+    ],
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
     credentials: true,
     optionsSuccessStatus: 204,
+    allowedHeaders: [
+        'Content-Type',
+        'Accept',
+        'Authorization',
+        'Origin',
+        'X-Requested-With'
+    ]
 };
 
 const serviceAccount = {

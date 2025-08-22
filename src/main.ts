@@ -69,17 +69,11 @@ async function bootstrap() {
     const logger = new Logger('Bootstrap');
     const environment = configService.get('NODE_ENV') || 'development';
 
-    // Configuración de CORS para producción
+    // Global CORS configuration
     app.enableCors({
-      origin: [
-        'https://backeco.onrender.com',
-        'http://localhost:3000',
-        'http://localhost:4300'
-      ],
-      methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-      allowedHeaders: ['Content-Type', 'Authorization'],
-      credentials: true
+      origin: '*',
     });
+
 
     // Configuración de prefijo global para la API
     app.setGlobalPrefix('api');
@@ -87,65 +81,7 @@ async function bootstrap() {
     // Optimizations for production
     if (process.env.NODE_ENV === 'production') {
       app.enableShutdownHooks();
-      app.enableCors({
-        origin: [
-          'http://localhost:3000',
-          'http://localhost:8080',
-          'http://localhost:4200',
-          'https://ecoadmin.onrender.com',  // Ajusta según tu dominio real del admin
-          'https://ecoapp.onrender.com'     // Ajusta según tu dominio real de la app
-        ],
-        methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
-        credentials: true,
-        allowedHeaders: ['Content-Type', 'Accept', 'Authorization'],
-      });
     } else {
-      // Actualizar configuración CORS
-      app.enableCors({
-        origin: '*',
-        methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
-        allowedHeaders: [
-          'Content-Type',
-          'Accept',
-          'Authorization',
-          'x-client-type',
-          'Origin',
-          'Access-Control-Allow-Origin',
-          'Access-Control-Allow-Credentials',
-          'Access-Control-Allow-Methods',
-          'X-Requested-With'
-        ],
-        exposedHeaders: ['Authorization'],
-        credentials: true,
-        maxAge: 3600
-      });
-
-      // Middleware mejorado para autenticación y CORS
-      app.use((req: any, res: any, next: any) => {
-        res.header('Access-Control-Allow-Origin', '*');
-        res.header('Access-Control-Allow-Credentials', 'true');
-        res.header('Access-Control-Allow-Methods', 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS');
-        res.header(
-          'Access-Control-Allow-Headers',
-          'Content-Type, Accept, Authorization, x-client-type, Origin, Access-Control-Allow-Origin, X-Requested-With'
-        );
-
-        // Manejo especial para preflight requests
-        if (req.method === 'OPTIONS') {
-          res.header('Access-Control-Max-Age', '3600');
-          res.status(204).end();
-          return;
-        }
-
-        // Logging de token para debugging
-        const token = req.headers.authorization;
-        if (token) {
-          logger.debug(`🔑 Token received: ${token.substring(0, 20)}...`);
-        }
-
-        next();
-      });
-
       // Middleware para logging mejorado
       app.use((req: any, res: any, next: any) => {
         const clientType = req.headers['x-client-type'] || 'unknown';
