@@ -13,6 +13,7 @@ import { CategoriesModule } from './categories/category.module';
 import { ExerciseHistoryModule } from './exerciseHistory/exercise-history.module';
 import { ScheduleModule } from '@nestjs/schedule';
 import { MotivosModule } from './motivos/motivos.module';
+import { AppController } from './app.controller';
 
 
 @Module({
@@ -32,7 +33,7 @@ import { MotivosModule } from './motivos/motivos.module';
     MotivosModule,
     ScheduleModule.forRoot(),
   ],
-  controllers: [],
+  controllers: [AppController],
   providers: [],
 })
 export class AppModule { }
