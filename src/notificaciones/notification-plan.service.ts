@@ -133,6 +133,19 @@ export class NotificationPlanService {
     }
   }
 
+  async deletePlanById(id: string) {
+    const db = this.firebaseService.getFirestore();
+    const planRef = db.collection('plans').doc(id);
+    // Verificar que el plan existe
+    const doc = await planRef.get();
+    if (!doc.exists) {
+      throw new NotFoundException('Plan no encontrado');
+    }
+    // Eliminar el plan
+    await planRef.delete();
+
+    this.logger.log(`Plan deleted: ${id}`);
+  }
   async cleanExpiredPlans(): Promise<void> {
     try {
       const db = this.firebaseService.getFirestore();

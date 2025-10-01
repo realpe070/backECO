@@ -108,6 +108,29 @@ export class NotificationPlanController {
     };
   }
 
+  @Delete('process/:id')
+  @ApiResponse({ status: 200, description: 'Proceso eliminado' })
+  async deleteProcess(@Param('id') id: string) {
+    try {
+    this.logger.log(`Deleting notification plan: ${id}`);
+    await this.notificationPlanService.deletePlanById(id);
+    return {
+      status: true,
+      message: 'Proceso eliminado exitosamente',
+    };
+  } catch (error: unknown) {
+    this.logger.error('Error deleting notification plan:', error);
+    throw new HttpException(
+      {
+        status: false,
+        message: error instanceof Error ? error.message : 'Error desconocido',
+        error: 'NOTIFICATION_PLAN_DELETE_ERROR',
+      },
+      HttpStatus.INTERNAL_SERVER_ERROR,
+    );
+  }
+}
+
   @Post('interruptions')
   @ApiResponse({ status: 201, description: 'Interrupción creada' })
   async createInterruption(@Body() interruptionDto: any) {

@@ -9,4 +9,7 @@ export class UpdateProfileDto {
 
   @IsString()
   avatarColor!: string;
+
+  @IsString()
+  email!: string;
 }

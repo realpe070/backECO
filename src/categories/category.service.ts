@@ -3,6 +3,7 @@ import { FirebaseService } from '../firebase/firebase.service';
 import { CreateCategoryDto, Category } from './dto/category.dto';
 import { FieldPath } from 'firebase-admin/firestore';
 import { UpdateCategoryDto } from './dto/category.update.dto';
+import { json } from 'stream/consumers';
 
 @Injectable()
 export class CategoryService {
@@ -209,6 +210,56 @@ export class CategoryService {
       const db = this.firebaseService.getFirestore();
       const categoryRef = db.collection('categories').doc(id);
       await categoryRef.delete();
+
+      const categoriesXexercisesRef = db.collection('categoriesXexercise');
+      const relationsSnap = await categoriesXexercisesRef
+        .where('categoriaId', '==', id)
+        .get();
+
+      // Eliminar relaciones
+      const deletePromises = relationsSnap.docs.map((doc) =>
+        categoriesXexercisesRef.doc(doc.id).delete(),
+      );
+      await Promise.all(deletePromises);
+
+      // eliminar plan 
+      const plansRef = db.collection('plans');
+      const plansSnap = await plansRef
+        .where('categories', 'array-contains', id)
+        .get();
+
+      // Eliminar planes
+      const deletePlanPromises = plansSnap.docs.map((doc) =>
+        plansRef.doc(doc.id).delete(),
+      );
+      await Promise.all(deletePlanPromises);
+
+      // Buscar notificationPlans que tengan algún assignedPlans con id de los planes eliminados
+      const notificationsRef = db.collection('notificationPlans');
+      const notificationsSnap = await notificationsRef.get();
+      const planIds = plansSnap.docs.map(doc => doc.id);
+
+    
+      const notificationsToDelete = notificationsSnap.docs.filter(doc => {
+
+        const assignedPlans = doc.data().assignedPlans || {};
+        this.logger.debug(JSON.stringify(assignedPlans));
+        return Object.values(assignedPlans).some((plansArr: any) =>
+          Array.isArray(plansArr) &&
+          plansArr.some((plan: any) => planIds.includes(plan.id))
+        );
+      });
+
+      const deleteNotificationPromises = notificationsToDelete.map((doc) =>
+        notificationsRef.doc(doc.id).delete(),
+      );
+
+
+      await Promise.all(deleteNotificationPromises);
+      
+      //
+      this.logger.debug('Categoría eliminada exitosamente:', id);
+
     } catch (error) {
       this.logger.error('Error eliminando categoría:', error);
       throw error;
@@ -284,7 +335,7 @@ export class CategoryService {
     }
   }
 
-  async getCategoryRecentActivities(groupId: string): Promise<Category[]> {
+  async getCategoryRecentActivities(groupId: string): Promise<{categorias: Category[] , proceso: string | undefined}> {
     try {
       this.logger.debug(
         'Obteniendo actividades recientes para categoría:',
@@ -321,7 +372,9 @@ export class CategoryService {
      const categorias = await this.getCategoriesWithActivitiesByIds({
        ids: [categoryId],
      });
-     return categorias;
+
+     this.logger.debug('Categorías obtenidas:', JSON.stringify( planDoc.id));
+     return { categorias, proceso: planDoc.id}
     } catch (error) {
       this.logger.error('Error obteniendo actividades recientes:', error);
       throw error;

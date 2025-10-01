@@ -23,19 +23,7 @@ export class ExerciseService {
 
   async createExercise(exercise: CreateExerciseDto): Promise<Exercise> {
     try {
-      // 3️⃣ Extraer ID del archivo de Google Drive
-      const driveFileId = this.driveService.extractFileId(exercise.videoUrl);
 
-      if (!driveFileId) {
-        throw new HttpException(
-          {
-            status: false,
-            message: 'Invalid video URL',
-            error: 'INVALID_VIDEO_URL',
-          },
-          HttpStatus.BAD_REQUEST,
-        );
-      }
       // 4️⃣ Preparar datos finales de la actividad
       const now: string = new Date().toISOString();
 
@@ -45,6 +33,31 @@ export class ExerciseService {
         updatedAt: now,
       };
       const db = this.firebaseService.getFirestore();
+
+      // validar que el nombre y el videoUrl no existan ya en la base de datos
+      const nameQuery = await db
+        .collection('exercises')
+        .where('nombre', '==', exercise.nombre)
+        .get();
+        
+      if (!nameQuery.empty) {
+        throw new HttpException(
+          'Ya existe un ejercicio con ese nombre',
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
+      const videoUrlQuery = await db
+        .collection('exercises')
+        .where('videoUrl', '==', exercise.videoUrl)
+        .get();
+
+      if (!videoUrlQuery.empty) {
+        throw new HttpException(
+          'Ya existe un ejercicio con ese videoUrl',
+          HttpStatus.BAD_REQUEST,
+        );
+      }
 
       // 5️⃣ Guardar en Firestore
       const ExerciseRef = await db.collection('exercises').add({...dataSentToFirebase});
@@ -204,6 +217,31 @@ export class ExerciseService {
       }
 
       this.logger.log('Datos actualizados a guardar:', updatedData);
+
+       // validar que el nombre y el videoUrl no existan ya en la base de datos
+      const nameQuery = await db
+        .collection('exercises')
+        .where('nombre', '==', updateExerciseDto.nombre)
+        .get();
+        
+      if (!nameQuery.empty) {
+        throw new HttpException(
+          'Ya existe un ejercicio con ese nombre',
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
+      const videoUrlQuery = await db
+        .collection('exercises')
+        .where('videoUrl', '==', updateExerciseDto.videoUrl)
+        .get();
+
+      if (!videoUrlQuery.empty) {
+        throw new HttpException(
+          'Ya existe un ejercicio con ese videoUrl',
+          HttpStatus.BAD_REQUEST,
+        );
+      }
 
       await exerciseRef.update(updatedData);
 

@@ -49,6 +49,7 @@ export class UserService {
         lastName: userData?.lastName ?? '',
         email: userData?.email ?? '',
         gender: userData?.gender ?? '',
+        groupId: userData?.groupId  ?? '', 
         avatarColor: userData?.avatarColor?.toString() ?? '0xFF0067AC',
       };
     } catch (error) {
@@ -304,14 +305,21 @@ export class UserService {
     }
   }
 
-  async updateUserProfile(uid: string, data: UpdateProfileDto) {
+  async updateUserProfile(token: string, data: UpdateProfileDto) {
     try {
-      this.logger.log(`✏️ Actualizando perfil de usuario ${uid}`);
-
+      const decodedToken = await this.firebaseService.verifyToken(token);
+      const uid = decodedToken.uid;
       const db = this.firebaseService.getFirestore();
       const userRef = db.collection('users').doc(uid);
 
+      // Actualizar el perfil en Firestore
       await userRef.set(data, { merge: true });
+
+      // Si el email está presente en los datos, actualizar también en Firebase Auth
+      if (data.email) {
+        const auth = this.firebaseService.getAuth();
+        await auth.updateUser(uid, { email: data.email });
+      }
 
       this.logger.log('✅ Perfil actualizado correctamente');
       return {

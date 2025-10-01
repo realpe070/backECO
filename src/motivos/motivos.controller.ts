@@ -40,9 +40,9 @@ export class MotivosController {
     }
 
     @Delete(':id')
-    delete(@Param('id') id: string) {
+    async delete(@Param('id') id: string) {
         try {
-            const resultado = this.motivosService.remove(id);
+            const resultado = await this.motivosService.remove(id);
             return {
                 status: true,
                 message: 'Motivo eliminado exitosamente',
@@ -54,9 +54,9 @@ export class MotivosController {
     }
 
     @Put(':id')
-    put(@Param('id') id: string, @Body() createMotivoDto: CreateMotivoDto) {
+    async put(@Param('id') id: string, @Body() createMotivoDto: CreateMotivoDto) {
         try {
-            const motivoActualizado = this.motivosService.update(id, createMotivoDto);
+            const motivoActualizado = await this.motivosService.update(id, createMotivoDto);
             return {
                 status: true,
                 message: 'Motivo actualizado exitosamente',

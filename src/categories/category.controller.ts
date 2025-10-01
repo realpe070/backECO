@@ -186,7 +186,7 @@ export class CategoriesController {
   }
 
   @Get('get-by-ids/:id')
-  async getCategoriesByUser(@Param('id') ids: string): Promise<any[]> {
+  async getCategoriesByUser(@Param('id') ids: string , @Param('next') next: boolean) {
     try {
       return this.categoryService.getCategoryRecentActivities(ids);
     } catch (error) {

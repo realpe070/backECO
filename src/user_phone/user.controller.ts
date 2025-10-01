@@ -33,7 +33,13 @@ export class UserController {
   @Get()
   @UseGuards(AdminAuthGuard)
   async getUser(@Req() request: Request) {
-    const token = request.headers.authorization?.split(' ')[1];
+    this.logger.log(
+      '📱 Recibiendo petición GET /user',
+      JSON.stringify(request.headers),
+    );
+    const token = `Bearer ${request.headers.authorization?.split(' ')[1]}`;
+
+    this.logger.debug('👉 Token recibido:', token);
 
     if (!token) {
       throw new HttpException('No token provided', HttpStatus.UNAUTHORIZED);
@@ -52,7 +58,7 @@ export class UserController {
         throw new HttpException('No user ID found', HttpStatus.UNAUTHORIZED);
       }
 
-      const stats = await this.userService.getUserStats(userId , date);
+      const stats = await this.userService.getUserStats(userId, date);
 
       const response = {
         status: true,
@@ -95,7 +101,8 @@ export class UserController {
       return response;
     } catch (error: unknown) {
       this.logger.error('❌ Error en getAllUserStats:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+      const errorMessage =
+        error instanceof Error ? error.message : 'Error desconocido';
       throw new HttpException(
         {
           message: 'Error al obtener estadísticas globales',
@@ -109,29 +116,34 @@ export class UserController {
 
   @Patch('stats')
   @UseGuards(AdminAuthGuard)
-  async updateUserStats(@Body() statsData: UpdateStatsDto) {
+  async updateUserStats(
+    @Body() statsData: UpdateStatsDto,
+    @Req() request: Request,
+  ) {
     try {
-      this.logger.log('📊 Recibiendo petición PATCH /user/stats');
-      this.logger.debug('Datos recibidos:', JSON.stringify(statsData, null, 2));
+      const token = `Bearer ${request.headers.authorization?.split(' ')[1]}`;
 
-      // TODO: Reemplazar con el UID del token cuando implementes la autenticación
-      const uid = 'UIHLeSVc7dbtfys1m5tIqGWaJU73';
+      this.logger.debug('👉 Token recibido:', token);
 
-      const result = await this.userService.updateUserStats(uid, statsData);
-      
+      if (!token) {
+        throw new HttpException('No token provided', HttpStatus.UNAUTHORIZED);
+      }
+
+      const result = await this.userService.updateUserStats(token, statsData);
+
       this.logger.log('✅ Estadísticas actualizadas');
       return result;
-      
     } catch (error: unknown) {
       this.logger.error('Error en updateUserStats:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+      const errorMessage =
+        error instanceof Error ? error.message : 'Error desconocido';
       throw new HttpException(
-        { 
+        {
           message: 'Error al actualizar estadísticas',
           status: false,
-          error: errorMessage
+          error: errorMessage,
         },
-        HttpStatus.INTERNAL_SERVER_ERROR
+        HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
   }
@@ -140,58 +152,64 @@ export class UserController {
   @UseGuards(AdminAuthGuard)
   async updateSettings(@Body() settings: UpdateNotificationSettingsDto) {
     try {
-      this.logger.log('📱 Recibiendo petición PATCH /user/notification-settings');
-      this.logger.debug('Configuración recibida:', JSON.stringify(settings, null, 2));
+      this.logger.log(
+        '📱 Recibiendo petición PATCH /user/notification-settings',
+      );
+      this.logger.debug(
+        'Configuración recibida:',
+        JSON.stringify(settings, null, 2),
+      );
 
       // TODO: Reemplazar con el UID del token cuando implementes autenticación
       const uid = 'UIHLeSVc7dbtfys1m5tIqGWaJU73';
 
-      const result = await this.userService.updateNotificationSettings(uid, settings);
-      
+      const result = await this.userService.updateNotificationSettings(
+        uid,
+        settings,
+      );
+
       this.logger.log('✅ Configuración actualizada');
       return result;
     } catch (error: unknown) {
       this.logger.error('Error en updateSettings:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+      const errorMessage =
+        error instanceof Error ? error.message : 'Error desconocido';
       throw new HttpException(
-        { 
+        {
           message: 'Error al actualizar configuración',
           status: false,
-          error: errorMessage
+          error: errorMessage,
         },
-        HttpStatus.INTERNAL_SERVER_ERROR
+        HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
   }
 
   @Patch('profile')
   @UseGuards(AdminAuthGuard)
-  async updateUserProfile(@Body() body: UpdateProfileDto, @Req() request: Request) {
+  async updateUserProfile(
+    @Body() body: UpdateProfileDto,
+    @Req() request: Request,
+  ) {
     try {
       this.logger.log('📝 Recibiendo petición PATCH /user/profile');
-      const token = request.headers.authorization?.split(' ')[1];
+      const token = `Bearer ${request.headers.authorization?.split(' ')[1]}`;
 
-      if (!token) {
-        throw new HttpException('No token provided', HttpStatus.UNAUTHORIZED);
-      }
+      const result = await this.userService.updateUserProfile(token, body);
 
-      const decodedToken = await this.firebaseService.verifyToken(token);
-      const uid = decodedToken.uid;
-
-      const result = await this.userService.updateUserProfile(uid, body);
-      
       this.logger.log('✅ Perfil actualizado');
       return result;
     } catch (error) {
       this.logger.error('❌ Error en updateUserProfile:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+      const errorMessage =
+        error instanceof Error ? error.message : 'Error desconocido';
       throw new HttpException(
-        { 
+        {
           message: 'Error al actualizar perfil',
           status: false,
-          error: errorMessage
+          error: errorMessage,
         },
-        HttpStatus.INTERNAL_SERVER_ERROR
+        HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
   }
@@ -202,14 +220,15 @@ export class UserController {
       const result = await this.userService.createUser(registerDto);
       return result;
     } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+      const errorMessage =
+        error instanceof Error ? error.message : 'Error desconocido';
       throw new HttpException(
         {
           message: 'Error al registrar usuario',
           status: false,
-          error: errorMessage
+          error: errorMessage,
         },
-        HttpStatus.INTERNAL_SERVER_ERROR
+        HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
   }
@@ -228,14 +247,15 @@ export class UserController {
       };
     } catch (error: unknown) {
       this.logger.error('❌ Error en resetPassword:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+      const errorMessage =
+        error instanceof Error ? error.message : 'Error desconocido';
       throw new HttpException(
         {
           message: 'Error al enviar correo de restablecimiento de contraseña',
           status: false,
-          error: errorMessage
+          error: errorMessage,
         },
-        HttpStatus.INTERNAL_SERVER_ERROR
+        HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
   }

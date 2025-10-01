@@ -88,6 +88,14 @@ export class NotifierService {
               planDate.setHours(h, m, 0, 0);
               planDate.setHours(planDate.getHours() - 1); // restar 1 hora
 
+
+              // --- calcular una hora antes en joirnada de la tarde ---
+              const [h2, m2] = plan.timeSecond.split(':').map(Number);
+              const planDateSecond = new Date();
+              planDateSecond.setHours(h2, m2, 0, 0);
+              planDateSecond.setHours(planDateSecond.getHours() - 1); // restar 1 hora
+
+
               const planTimeMinusOneHour = `${String(
                 planDate.getHours(),
               ).padStart(
@@ -95,27 +103,19 @@ export class NotifierService {
                 '0',
               )}:${String(planDate.getMinutes()).padStart(2, '0')}`;
 
-              // Si la hora actual coincide con la hora - 1h → enviar
-              // Si la hora actual coincide con la hora - 1h o la hora - 6h → enviar
-              const planDateMinusSixHours = new Date(planDate);
-              planDateMinusSixHours.setHours(
-                planDateMinusSixHours.getHours() - 5,
-              ); // ya restamos 1h antes, restar 5h más
-
-              const planTimeMinusSixHours = `${String(
-                planDateMinusSixHours.getHours(),
+              const planTimeSecondOneHour = `${String(
+                planDateSecond.getHours(),
               ).padStart(
                 2,
                 '0',
-              )}:${String(planDateMinusSixHours.getMinutes()).padStart(2, '0')}`;
+              )}:${String(planDateSecond.getMinutes()).padStart(2, '0')}`;
 
-              console.log(
-                `⏰ ${planDate} Verificando notificaciones para: ${planTimeMinusOneHour} y ${planTimeMinusSixHours}`,
-              );
-
+              // Si la hora actual coincide con la hora - 1h → enviar
+              // Si la hora actual coincide con la hora - 1h o la hora - 6h → enviar
+              
               if (
                 currentTime === planTimeMinusOneHour ||
-                currentTime === planTimeMinusSixHours
+                currentTime === planTimeSecondOneHour
               ) {
                 console.log(
                   `🚀 Ejecutando plan ${p.id}: notificación ${
