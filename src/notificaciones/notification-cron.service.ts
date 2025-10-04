@@ -170,10 +170,10 @@ export class NotifierService {
 
                 const message = {
                   notification: {
-                    title: `Próxima actividad: ${p.name} 🏋️‍♂️`,
+                    title: `Realiza las actividades de: ${p.name} 🏋️‍♂️`,
                     body: `⏰ En ${
-                      currentTime === planTimeMinusOneHour ? '1 hora' : '1 hora'
-                    } tienes ${p.name} (${p.time}) `,
+                      currentTime ===  '1 hora' 
+                    } tienes ${p.name} (${p.time}) recuerda disponible del ${p.startDate.split('-')[2]} al ${p.endDate.split('-')[2]}.`,
                   },
                   data: {
                     customKey: '',
@@ -276,7 +276,7 @@ export class NotifierService {
         const message = {
           notification: {
             title: `¡Hora de moverse! 💪`,
-            body: `Te sugerimos: ${actividadAleatoria?.nombre || 'una actividad'}`,
+            body: `Tiene una actividad pendiente: ${actividadAleatoria?.nombre || 'Apresúrate a hacer ejercicio'}.`,
           },
           data: {
             actividadId: actividadAleatoria?.id,

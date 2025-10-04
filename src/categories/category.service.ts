@@ -222,7 +222,7 @@ export class CategoryService {
       );
       await Promise.all(deletePromises);
 
-      // eliminar plan 
+      // eliminar plan
       const plansRef = db.collection('plans');
       const plansSnap = await plansRef
         .where('categories', 'array-contains', id)
@@ -237,16 +237,15 @@ export class CategoryService {
       // Buscar notificationPlans que tengan algún assignedPlans con id de los planes eliminados
       const notificationsRef = db.collection('notificationPlans');
       const notificationsSnap = await notificationsRef.get();
-      const planIds = plansSnap.docs.map(doc => doc.id);
+      const planIds = plansSnap.docs.map((doc) => doc.id);
 
-    
-      const notificationsToDelete = notificationsSnap.docs.filter(doc => {
-
+      const notificationsToDelete = notificationsSnap.docs.filter((doc) => {
         const assignedPlans = doc.data().assignedPlans || {};
         this.logger.debug(JSON.stringify(assignedPlans));
-        return Object.values(assignedPlans).some((plansArr: any) =>
-          Array.isArray(plansArr) &&
-          plansArr.some((plan: any) => planIds.includes(plan.id))
+        return Object.values(assignedPlans).some(
+          (plansArr: any) =>
+            Array.isArray(plansArr) &&
+            plansArr.some((plan: any) => planIds.includes(plan.id)),
         );
       });
 
@@ -254,12 +253,10 @@ export class CategoryService {
         notificationsRef.doc(doc.id).delete(),
       );
 
-
       await Promise.all(deleteNotificationPromises);
-      
+
       //
       this.logger.debug('Categoría eliminada exitosamente:', id);
-
     } catch (error) {
       this.logger.error('Error eliminando categoría:', error);
       throw error;
@@ -335,7 +332,9 @@ export class CategoryService {
     }
   }
 
-  async getCategoryRecentActivities(groupId: string): Promise<{categorias: Category[] , proceso: string | undefined}> {
+  async getCategoryRecentActivities(
+    groupId: string,
+  ): Promise<{ categorias: Category[]; proceso: string | undefined }> {
     try {
       this.logger.debug(
         'Obteniendo actividades recientes para categoría:',
@@ -353,7 +352,9 @@ export class CategoryService {
         .get();
 
       if (plansSnap.empty) {
-        throw new BadRequestException('No se encontró un plan con fechaFin próxima');
+        throw new BadRequestException(
+          'No se encontró un plan con fechaFin próxima',
+        );
       }
       const planRef = plansSnap.docs[0].ref;
       const planDoc = await planRef.get();
@@ -369,12 +370,95 @@ export class CategoryService {
         );
       }
 
-     const categorias = await this.getCategoriesWithActivitiesByIds({
-       ids: [categoryId],
-     });
+      const categorias = await this.getCategoriesWithActivitiesByIds({
+        ids: [categoryId],
+      });
 
-     this.logger.debug('Categorías obtenidas:', JSON.stringify( planDoc.id));
-     return { categorias, proceso: planDoc.id}
+      this.logger.debug('Categorías obtenidas:', JSON.stringify(planDoc.id));
+      return { categorias, proceso: planDoc.id };
+    } catch (error) {
+      this.logger.error('Error obteniendo actividades recientes:', error);
+      throw error;
+    }
+  }
+
+  async saveCategoryHistory(
+    userId: string,
+    processId: string,
+    groupId?: string,
+  ): Promise<void> {
+    try {
+      this.logger.log(
+        `📝 Guardando historial para usuario: ${userId}, proceso: ${processId}`,
+      );
+      const db = this.firebaseService.getFirestore();
+      let today = new Date().toISOString().split('T')[0]; // "YYYY-MM-DD"
+      const verificar = await db.collection('categoryHistory')
+      .where('processId', '==', processId)
+      .where('userId', '==', userId)
+      .where('groupId', '==', groupId || null)
+      .where('createAt', '==', today)
+      .get();
+
+      if(!verificar.empty){
+        this.logger.log('El historial ya existe para hoy, no se crea un nuevo registro.');
+        return;
+      }
+
+      await db.collection('categoryHistory').add({
+        userId,
+        processId,
+        groupId,
+        createAt: today,
+      });
+    } catch (error) {
+      this.logger.error('Error guardando historial:', error);
+      throw error;
+    }
+  }
+
+  async getCategoryRecentActivitiesByUser(
+    userId: string,
+    groupId?: string,
+  ) {
+    try {
+      this.logger.debug('Obteniendo actividades recientes para usuario:', userId);
+      const db = this.firebaseService.getFirestore();
+      const today = new Date().toISOString().split('T')[0]; // "YYYY-MM-DD"
+      const todayFormat = `${today}T00:00:00.000Z`;
+      const historySnap = await db.collection('categoryHistory')
+        .where('userId', '==', userId)
+        .where('groupId', '==', groupId || null)
+        .where('createAt', '==', today)
+        .get();
+
+      this.logger.debug(`Historial encontrado: ${historySnap.size} registros`);
+
+      const plansAvailables = await db.collection('plans')
+        .where('groupId', '==', groupId || null)
+        .where('estado', '==', true)
+        .get();
+      
+      this.logger.debug(`Planes disponibles encontrados: ${plansAvailables.size} registros`);
+
+      if (plansAvailables.empty) {
+        return { categorias: [], proceso: undefined };
+      }
+
+      // Obtener los processId ya usados en el historial
+      const usedProcessIds = historySnap.docs.map(doc => doc.data().processId);
+
+      // Buscar el primer plan disponible cuyo id no esté en el historial
+      const nextPlanDoc = plansAvailables.docs.find(doc => !usedProcessIds.includes(doc.id));
+
+      if (!nextPlanDoc) {
+        return { categorias: [], proceso: undefined };
+      }
+
+      const categories = nextPlanDoc.data().categories || [];
+      const categoriasNext = await this.getCategoriesWithActivitiesByIds({ ids: categories });
+
+      return { categorias: categoriasNext, proceso: nextPlanDoc.id };
     } catch (error) {
       this.logger.error('Error obteniendo actividades recientes:', error);
       throw error;

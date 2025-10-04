@@ -11,6 +11,7 @@ import {
   HttpStatus,
   Req,
   Delete,
+  Query,
 } from '@nestjs/common';
 import { ApiTags, ApiResponse } from '@nestjs/swagger';
 import { Request } from 'express';
@@ -197,6 +198,47 @@ export class CategoriesController {
           message:
             error instanceof Error ? error.message : 'Error obteniendo categorías',
           error: 'CATEGORY_UNPAUSE_ERROR',
+        },
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  @Post('/recent')
+  async saveHistory(@Body() { userId, processId, groupId }: { userId: string; processId: string; groupId?: string }) {
+    try {
+      this.logger.log(`📝 Guardando historial para usuario: ${userId}, proceso: ${processId}`);
+      await this.categoryService.saveCategoryHistory(userId, processId, groupId);
+      return {
+        status: true,
+        message: 'Historial guardado exitosamente',
+      };
+    } catch (error) {
+      this.logger.error('Error guardando historial:', error);
+      throw new HttpException(
+        {
+          status: false,
+          message:
+            error instanceof Error ? error.message : 'Error guardando historial',
+          error: 'CATEGORY_HISTORY_SAVE_ERROR',
+        },
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  @Get('/recent/')
+  async getRecentCategories(@Query('userId') userId: string, @Query('groupId') groupId: string) {
+    try {
+      return this.categoryService.getCategoryRecentActivitiesByUser(userId, groupId);
+    } catch (error) {
+      this.logger.error('Error obteniendo categorías recientes:', error);
+      throw new HttpException(
+        {
+          status: false,
+          message:
+            error instanceof Error ? error.message : 'Error obteniendo categorías recientes',
+          error: 'CATEGORY_RECENT_ERROR',
         },
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
