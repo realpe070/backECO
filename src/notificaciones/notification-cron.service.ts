@@ -30,7 +30,7 @@ export class NotifierService {
   }
   private readonly logger = new Logger(NotifierService.name);
 
-  @Cron('* * * * *', {
+  @Cron('*/5 * * * *', {
     timeZone: 'America/Bogota', // ajusta a tu zona
   })
   async handleDailyNotifications() {
@@ -80,16 +80,18 @@ export class NotifierService {
       for (const fecha in cronograma) {
         if (cronograma.hasOwnProperty(fecha)) {
           const planes = cronograma[fecha];
+          this.logger.log(`🔔 Procesando plan: ${fecha}`);
+          this.logger.log(`🔔 Plan details: ${fechaHoy}`);
           for (const p of planes) {
             if (fecha === fechaHoy) {
               // ----  calcular una hora antes ----
-              const [h, m] = plan.time.split(':').map(Number);
+              const [h, m] = p.time.split(':').map(Number);
               const planDate = new Date();
               planDate.setHours(h, m, 0, 0);
               planDate.setHours(planDate.getHours() - 1); // restar 1 hora
 
               // --- calcular una hora antes en joirnada de la tarde ---
-              const [h2, m2] = plan.timeSecond.split(':').map(Number);
+              const [h2, m2] = p.timeSecond.split(':').map(Number);
               const planDateSecond = new Date();
               planDateSecond.setHours(h2, m2, 0, 0);
               planDateSecond.setHours(planDateSecond.getHours() - 1); // restar 1 hora
@@ -101,12 +103,17 @@ export class NotifierService {
                 '0',
               )}:${String(planDate.getMinutes()).padStart(2, '0')}`;
 
+              this.logger.log(`🔔 Plan time (1h before): ${planTimeMinusOneHour}`);
+
               const planTimeSecondOneHour = `${String(
                 planDateSecond.getHours(),
               ).padStart(
                 2,
                 '0',
               )}:${String(planDateSecond.getMinutes()).padStart(2, '0')}`;
+
+
+              this.logger.log(`🔔 Plan time second (1h before): ${planTimeSecondOneHour}`);
 
               // Si la hora actual coincide con la hora - 1h → enviar
               // Si la hora actual coincide con la hora - 1h o la hora - 6h → enviar
@@ -135,27 +142,35 @@ export class NotifierService {
 
                 const userRefs = usersSnap.docs.map((d) => d.id);
 
+                this.logger.log(`Found ${userRefs.length} users for group ${p.group}.`);
+
                 // Filtrar usuarios que tienen pausas activas hoy entre las 8:00 y las 23:00
                 const currentHourStr = `${this.pad(now.getHours())}:${this.pad(now.getMinutes())}`; // Ej: "09:05"
+
+                this.logger.log(`Current hour string: ${currentHourStr}`);
 
                 const userPauseSnap = await db
                   .collection('notificationPauses')
                   .where('idUser', 'in', userRefs)
                   .where('notifiActive', '==', true)
-                  .where('dateStart', '<=', currentHourStr) // <=
-                  .where('dateEnd', '>=', currentHourStr) // >=
+                  .where('dateStart', '<=', currentHourStr) // dateStart <= currentHourStr
+                  .where('dateEnd', '>=', currentHourStr)   // dateEnd >= currentHourStr
                   .get();
+
+                this.logger.log(`Found ${userPauseSnap.docs.length} active pauses for users.`);
 
                 // Solo considerar usuarios que tienen pausas activas en el rango horario actual
                 const pausedUsers = userPauseSnap.docs.map(
                   (doc) => doc.data().idUser,
                 );
+
+                this.logger.log(`Found ${pausedUsers.length} paused users for group ${p.group}.`);
                 const usersDisponibles = userRefs.filter(
-                  (id) => !pausedUsers.includes(id),
+                  (id) => pausedUsers.includes(id),
                 );
 
                 this.logger.log(
-                  `Found ${userPauseSnap.docs.length} active pauses for users.`,
+                  `Found ${usersDisponibles.length} active users for group ${p.group}.`,
                 );
 
                 for (const userId of usersDisponibles) {
@@ -163,6 +178,8 @@ export class NotifierService {
                     .collection('devices')
                     .where('userId', '==', userId)
                     .get();
+
+                  this.logger.log(`Found ${devicesSnap.docs.length} devices for user ${userId}.`);
 
                   devicesSnap.forEach((d) => {
                     const device = d.data();
@@ -175,14 +192,19 @@ export class NotifierService {
                   continue;
                 }
 
-                const bodyMessage =
-                  currentTime === planTimeMinusOneHour
-                    ? `⏰ En 1 hora tienes ${p.name} (${p.time}) ${p.startDate.split('-')[2]} al ${p.endDate.split('-')[2]}.`
-                    : `⏰ En 1 horas tienes ${p.name} (${p.timeSecond}) ${p.startDate.split('-')[2]} al ${p.endDate.split('-')[2]}.`;
+                const dataDay = plan.endDate.split('-')[2];
+                const dataDay2 = plan.startDate.split('-')[2];
+
+                let bodyMessage = ''
+
+                if (currentTime >= planTimeMinusOneHour && currentTime < planTimeSecondOneHour)
+                    bodyMessage = `⏰ En 1 hora tienes ${p.name} (${p.time}) disponible del ${dataDay2.split('T')[0]} al ${dataDay.split('T')[0]}.`
+               if (currentTime >= planTimeSecondOneHour && currentTime > planTimeMinusOneHour)
+                    bodyMessage = `⏰ En 1 hora tienes ${p.name} (${p.timeSecond}) disponible del ${dataDay2.split('T')[0]} al ${dataDay.split('T')[0]}.`
 
                 const message = {
                   notification: {
-                    title: `Realiza las actividades de: ${p.name} 🏋️‍♂️`,
+                    title: `Realiza las actividades de ${p.name} 🏋️‍♂️`,
                     body:  bodyMessage,
                   },
                   data: {
@@ -207,7 +229,10 @@ export class NotifierService {
       }
 
       // Desactivar planes vencidos
-      if (plan.endDate === fechaHoy) {
+      // Desactivar planes si la fecha de hoy es igual o posterior a la fecha de finalización
+      const fechaHoyDate = new Date(fechaHoy);
+      const endDateDate = new Date(plan.endDate + 'T00:00:00.000');
+      if (fechaHoyDate > endDateDate) {
         await db.collection('notificationPlans').doc(planId).update({
           isActive: false,
         });
@@ -215,7 +240,7 @@ export class NotifierService {
         console.log(`Desactivando planes: ${planesToDesactivar.join(', ')}`);
         for (const id of planesToDesactivar) {
           await db.collection('plans').doc(id).update({
-            estado: false,
+        estado: false,
           });
           console.log(`❌ Plan ${id} desactivado (ya venció)`);
         }
