@@ -37,7 +37,7 @@ export class NotifierService {
     const db = admin.firestore();
     this.logger.debug('📅 Ejecutando notificaciones del día...');
     const now = new Date();
-    console.log('⏰ Cron cada 5 segundos:', new Date().toISOString());
+    this.logger.debug('⏰ Cron cada 5 minutos:', new Date().toISOString());
     // Fecha de hoy en formato YYYY-MM-DD
     const yyyy = now.getFullYear();
     const mm = String(now.getMonth() + 1).padStart(2, '0');
@@ -88,13 +88,11 @@ export class NotifierService {
               planDate.setHours(h, m, 0, 0);
               planDate.setHours(planDate.getHours() - 1); // restar 1 hora
 
-
               // --- calcular una hora antes en joirnada de la tarde ---
               const [h2, m2] = plan.timeSecond.split(':').map(Number);
               const planDateSecond = new Date();
               planDateSecond.setHours(h2, m2, 0, 0);
               planDateSecond.setHours(planDateSecond.getHours() - 1); // restar 1 hora
-
 
               const planTimeMinusOneHour = `${String(
                 planDate.getHours(),
@@ -112,10 +110,16 @@ export class NotifierService {
 
               // Si la hora actual coincide con la hora - 1h → enviar
               // Si la hora actual coincide con la hora - 1h o la hora - 6h → enviar
-              
+
+              const diffInMinutes = (timeA: string, timeB: string) => {
+                const [hA, mA] = timeA.split(':').map(Number);
+                const [hB, mB] = timeB.split(':').map(Number);
+                return Math.abs(hA * 60 + mA - (hB * 60 + mB));
+              };
+
               if (
-                currentTime === planTimeMinusOneHour ||
-                currentTime === planTimeSecondOneHour
+                diffInMinutes(currentTime, planTimeMinusOneHour) <= 1 ||
+                diffInMinutes(currentTime, planTimeSecondOneHour) <= 1
               ) {
                 console.log(
                   `🚀 Ejecutando plan ${p.id}: notificación ${
@@ -143,8 +147,11 @@ export class NotifierService {
                   .get();
 
                 // Solo considerar usuarios que tienen pausas activas en el rango horario actual
-                let usersDisponibles = userPauseSnap.docs.map(
+                const pausedUsers = userPauseSnap.docs.map(
                   (doc) => doc.data().idUser,
+                );
+                const usersDisponibles = userRefs.filter(
+                  (id) => !pausedUsers.includes(id),
                 );
 
                 this.logger.log(
@@ -168,12 +175,15 @@ export class NotifierService {
                   continue;
                 }
 
+                const bodyMessage =
+                  currentTime === planTimeMinusOneHour
+                    ? `⏰ En 1 hora tienes ${p.name} (${p.time}) ${p.startDate.split('-')[2]} al ${p.endDate.split('-')[2]}.`
+                    : `⏰ En 1 horas tienes ${p.name} (${p.timeSecond}) ${p.startDate.split('-')[2]} al ${p.endDate.split('-')[2]}.`;
+
                 const message = {
                   notification: {
                     title: `Realiza las actividades de: ${p.name} 🏋️‍♂️`,
-                    body: `⏰ En ${
-                      currentTime ===  '1 hora' 
-                    } tienes ${p.name} (${p.time}) recuerda disponible del ${p.startDate.split('-')[2]} al ${p.endDate.split('-')[2]}.`,
+                    body:  bodyMessage,
                   },
                   data: {
                     customKey: '',
