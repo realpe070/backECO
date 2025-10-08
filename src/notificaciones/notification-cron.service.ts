@@ -279,8 +279,8 @@ export class NotifierService {
 
       // Calcular si corresponde enviar notificación en este momento
       // Ejemplo: si frecuencia = 3, enviar cada 3 horas desde las 8:00 hasta las 23:00
-      const horaInicio = 8;
-      const horaFin = 23;
+      const horaInicio = frecuenciaData.dateStart;
+      const horaFin = frecuenciaData.dateEnd;
       const horaActual = now.getHours();
 
       if (horaActual < horaInicio || horaActual > horaFin) continue;
