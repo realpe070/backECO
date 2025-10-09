@@ -283,7 +283,7 @@ export class NotifierService {
       const horaFin = frecuenciaData.dateEnd;
       const horaActual = now.getHours();
 
-      if (horaActual < horaInicio || horaActual > horaFin) continue;
+      if (horaActual > horaInicio || horaActual < horaFin) continue;
 
       // Verificar si la hora actual es múltiplo de la frecuencia desde la hora de inicio
       if (
