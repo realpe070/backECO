@@ -279,11 +279,14 @@ export class NotifierService {
 
       // Calcular si corresponde enviar notificación en este momento
       // Ejemplo: si frecuencia = 3, enviar cada 3 horas desde las 8:00 hasta las 23:00
-      const horaInicio = frecuenciaData.dateStart;
-      const horaFin = frecuenciaData.dateEnd;
+      const horaInicio = parseInt(frecuenciaData.dateStart.split(':')[0]); // "02:00" -> 2
+      const horaFin = parseInt(frecuenciaData.dateEnd.split(':')[0]); // "19:00" -> 19
       const horaActual = now.getHours();
 
-      if (horaActual > horaInicio || horaActual < horaFin) continue;
+      // Verificar si la hora actual está dentro del rango
+      if (horaActual < horaInicio || horaActual > horaFin) continue;
+
+      this.logger.log(`Hora actual: ${horaActual}, Hora inicio: ${horaInicio}, Hora fin: ${horaFin}, Frecuencia: ${frecuenciaHoras}`);
 
       // Verificar si la hora actual es múltiplo de la frecuencia desde la hora de inicio
       if (
@@ -299,6 +302,7 @@ export class NotifierService {
           .collection('devices')
           .where('userId', '==', userId)
           .get();
+
         const tokens: string[] = [];
         devicesSnap.forEach((d) => {
           const device = d.data();

@@ -177,6 +177,11 @@ export class ProcessGroupService {
       const db = this.firebaseService.getFirestore();
       const groupRef = db.collection('processGroups').doc(id);
 
+      const plansSnapshot = await db.collection('plans').where('groupId', '==', id).get();
+      plansSnapshot.forEach((planDoc) => {
+        planDoc.ref.delete();
+      });
+
       const doc = await groupRef.get();
       if (!doc.exists) {
         throw new NotFoundException('Grupo no encontrado');
