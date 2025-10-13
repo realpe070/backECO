@@ -47,7 +47,6 @@ export class ExerciseHistoryService {
   async createHistory(history: CreateExerciseHistoryDto) {
     try {
       const db = this.firebaseService.getFirestore();
-      history.createdAt = new Date().toISOString().split('T')[0]; // Store as 'YYYY-MM-DD'
       // Save the history record to Firestore
       this.logger.log('Creating exercise history:', history);
       await db.collection('exercisesHistory').add(history);
