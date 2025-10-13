@@ -7,6 +7,7 @@ import { HttpExceptionFilter } from './filters/http-exception.filter';
 import { TransformInterceptor } from './interceptors/transform.interceptor';
 
 async function bootstrap() {
+  process.env.TZ = 'America/Bogota'; // 🔥 clave para Render
   const logger = new Logger('Bootstrap');
   try {
     const app = await NestFactory.create(AppModule, {
