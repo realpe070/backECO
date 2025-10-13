@@ -20,7 +20,7 @@ export class ExerciseHistoryService {
       .where('idUsuario', '==', params.userId)
       .where('idPlan', '==', params.plan)
       .where('idGrupo', '==', params.grupo)
-      .where('createdAt', '==', new Date().toLocaleString('es-CO', { timeZone: 'America/Bogota' }))
+      .where('createdAt', '==', new Date().toLocaleString('es-CO', { timeZone: 'America/Bogota' }).split('T')[0])
       .get();
 
     if (snapshot.empty) {
