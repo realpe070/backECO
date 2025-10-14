@@ -15,12 +15,17 @@ export class ExerciseHistoryService {
     this.logger.log('Fetching exercise history for plan:', params.plan);
     this.logger.log('Fetching exercise history for group:', params.grupo);
     const db = this.firebaseService.getFirestore();
+
+    let hoy =  new Date().toLocaleString('es-CO', { timeZone: 'America/Bogota' }).split(',')[0]
+    hoy = hoy.split('/').reverse().join('-'); // Convert to YYYY-MM-DD format
+
+    this.logger.log('Fetching exercise history for today:', hoy);
     const snapshot = await db
       .collection('exercisesHistory')
       .where('idUsuario', '==', params.userId)
       .where('idPlan', '==', params.plan)
       .where('idGrupo', '==', params.grupo)
-      .where('createdAt', '==', new Date().toISOString().split('T')[0]) // Filter by today's date
+      .where('createdAt', '==', hoy) // Filter by today's date
       .get();
 
     if (snapshot.empty) {
