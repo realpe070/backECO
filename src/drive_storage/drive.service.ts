@@ -15,6 +15,7 @@ export const DRIVE_SCOPES = [
 export const VALID_FOLDERS = [
   '1iSJMKnKE0oXp3QxlY03nsKQsv1KHMbhc',
   '1PKmm05PopK40UjKrQaBQpiAL8bb2Nx-V',
+  '1VbzVDZN2ecztMJkP8B-ZP5rLf_f3qHUQ'
 ];
 
 // Agregar nueva interfaz para los archivos de Drive
