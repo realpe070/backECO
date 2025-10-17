@@ -369,11 +369,22 @@ export class UserService {
     user: UserDataEcobreackDto,
   ): Promise<void> {
     try {
+      // Hashear la contraseña usando scrypt antes de guardar
+      const crypto = await import('crypto');
+      let hashedPassword: string | undefined = undefined;
+
+      if (user.password) {
+        const salt = crypto.randomBytes(16).toString('hex');
+        const derived = crypto.scryptSync(user.password, salt, 64) as Buffer;
+        hashedPassword = `${salt}:${derived.toString('hex')}`;
+      }
+
       const userEcobreack: UserDataEcobreackDto = {
         email: user.email,
         gender: user.gender,
         phoneNumber: user.phoneNumber,
         avatarColor: user.avatarColor,
+        password: hashedPassword,
         name: user.name,
         lastName: user.lastName,
       };
@@ -486,24 +497,60 @@ export class UserService {
   public async getUserAdditionalInfo(
     uid: string,
     db: any,
+    plainPassword?: string,
   ): Promise<{
-    nombre: any;
-    displayName: any;
-    avatarColor: any;
-    phoneNumber: any;
+    nombre: string;
+    displayName: string | null;
+    avatarColor: string | null;
+    phoneNumber: string | null;
     historyActivities: any;
-    groupId: any;
+    groupId: string | null;
+    passwordMatch?: boolean | null;
   }> {
     const userDoc = await db.collection('users').doc(uid).get();
-    const userData = userDoc.data();
+    if (!userDoc.exists) {
+      this.logger.warn(`Usuario no encontrado: ${uid}`);
+      return {
+        nombre: '',
+        displayName: null,
+        avatarColor: null,
+        phoneNumber: null,
+        historyActivities: null,
+        groupId: null,
+        passwordMatch: null,
+      };
+    }
+
+    const userData = userDoc.data() || {};
     this.logger.log(`User data: ${JSON.stringify(userData)}`);
+
+    let passwordMatch: boolean | null = null;
+    if (typeof plainPassword === 'string' && plainPassword.length > 0) {
+      const stored = userData.password;
+      if (typeof stored === 'string' && stored.includes(':')) {
+        try {
+          const crypto = await import('crypto');
+          const [salt, derivedHex] = stored.split(':');
+          const derived = crypto.scryptSync(plainPassword, salt, 64) as Buffer;
+          passwordMatch = derived.toString('hex') === derivedHex;
+        } catch (err) {
+          this.logger.error('Error verificando contraseña:', err);
+          passwordMatch = false;
+        }
+      } else {
+        // No hashed password stored in expected format
+        passwordMatch = false;
+      }
+    }
+
     return {
-      nombre: userData?.name + ' ' + userData?.lastName,
-      displayName: userData?.displayName,
-      avatarColor: userData?.avatarColor,
-      phoneNumber: userData?.phoneNumber,
-      historyActivities: userData?.historyActivities,
-      groupId: userData?.groupId,
+      nombre: `${userData?.name ?? ''} ${userData?.lastName ?? ''}`.trim(),
+      displayName: userData?.displayName ?? null,
+      avatarColor: userData?.avatarColor ?? null,
+      phoneNumber: userData?.phoneNumber ?? null,
+      historyActivities: userData?.historyActivities ?? null,
+      groupId: userData?.groupId ?? null,
+      passwordMatch,
     };
   }
 }

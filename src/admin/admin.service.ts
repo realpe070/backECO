@@ -95,7 +95,12 @@ export class AdminService {
       const userAdditionalInfo = await this.userService.getUserAdditionalInfo(
         userRecord.uid,
         db,
+        loginDto.password
       );
+
+      if (!userAdditionalInfo.passwordMatch) {
+        throw new UnauthorizedException('Credenciales inválidas');
+      }
 
       const customToken = await this.firebaseService
         .getAuth()
@@ -139,6 +144,7 @@ export class AdminService {
       const userAdditionalInfo = await this.userService.getUserAdditionalInfo(
         userRecord.uid,
         db,
+        loginDto.password
       );
 
       const customToken = await this.firebaseService

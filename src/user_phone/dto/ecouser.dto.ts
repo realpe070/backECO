@@ -8,6 +8,7 @@ export interface UserDataEcobreackDto {
   gender: string;
   phoneNumber: string;
   avatarColor: string;
+  password?: string;
   name: string;
   lastName: string;
   numActivities?: number;
