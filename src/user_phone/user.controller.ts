@@ -20,6 +20,7 @@ import { UpdateNotificationSettingsDto } from '../dto/update-notification-settin
 import { UpdateProfileDto } from '../dto/update-profile.dto';
 import { AdminAuthGuard } from 'src/admin/admin-auth.guard';
 import { CreateUserDto } from 'src/dto/create-user.dto';
+import { MailService } from './email.service';
 
 @Controller('admin/users/')
 export class UserController {
@@ -28,6 +29,7 @@ export class UserController {
   constructor(
     private readonly userService: UserService,
     private readonly firebaseService: FirebaseService,
+    private readonly emailService: MailService,
   ) {}
 
   @Get()
@@ -233,29 +235,50 @@ export class UserController {
     }
   }
 
-  @Post('reset-password')
-  async resetPassword(@Body('email') email: string) {
+  @Post('forgot-password')
+  async forgotPassword(@Body('email') email: string) {
     try {
-      if (!email) {
-        throw new HttpException('Email is required', HttpStatus.BAD_REQUEST);
-      }
-
-      await this.userService.sendPasswordResetEmail(email);
-      return {
-        status: true,
-        message: 'Password reset email sent successfully',
-      };
-    } catch (error: unknown) {
-      this.logger.error('❌ Error en resetPassword:', error);
+      this.logger.log('📧 Solicitud de recuperación de contraseña');
+      const result = await this.emailService.sendPasswordResetEmail(email);
+      return result;
+    } catch (error) {
+      this.logger.error('❌ Error enviando email de recuperación:', error);
       const errorMessage =
         error instanceof Error ? error.message : 'Error desconocido';
       throw new HttpException(
         {
-          message: 'Error al enviar correo de restablecimiento de contraseña',
+          message: 'Error enviando email de recuperación',
           status: false,
           error: errorMessage,
         },
-        HttpStatus.INTERNAL_SERVER_ERROR,
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+  }
+
+  @Post('reset-password')
+  async resetPassword(
+    @Body('token') token: string,
+    @Body('newPassword') newPassword: string,
+  ) {
+    try {
+      this.logger.log('🔑 Restableciendo contraseña con token');
+      const result = await this.emailService.resetPasswordWithToken(
+        token,
+        newPassword,
+      );
+      return result;
+    } catch (error) {
+      this.logger.error('❌ Error restableciendo contraseña:', error);
+      const errorMessage =
+        error instanceof Error ? error.message : 'Error desconocido';
+      throw new HttpException(
+        {
+          message: 'Error restableciendo contraseña',
+          status: false,
+          error: errorMessage,
+        },
+        HttpStatus.BAD_REQUEST,
       );
     }
   }

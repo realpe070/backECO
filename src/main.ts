@@ -1,19 +1,21 @@
 import { NestFactory } from '@nestjs/core';
+import { NestExpressApplication } from '@nestjs/platform-express';
 import { AppModule } from './app.module';
 import { ConfigService } from '@nestjs/config';
 import { Logger } from '@nestjs/common';
 import { Request, Response, NextFunction } from 'express';
 import { HttpExceptionFilter } from './filters/http-exception.filter';
 import { TransformInterceptor } from './interceptors/transform.interceptor';
+import { join } from 'path';
 
 async function bootstrap() {
   process.env.TZ = 'America/Bogota'; // 🔥 clave para Render
   const logger = new Logger('Bootstrap');
   try {
-    const app = await NestFactory.create(AppModule, {
+    const app = await NestFactory.create<NestExpressApplication>(AppModule, {
       logger: ['error', 'warn', 'debug', 'log'],
     });
-
+    app.useStaticAssets(join(__dirname, '..', 'public'));
     const configService = app.get(ConfigService);
     const port = process.env.PORT || 4300;
     const environment = configService.get<string>('NODE_ENV') || 'development';

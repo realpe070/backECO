@@ -413,20 +413,6 @@ export class UserService {
     }
   }
 
-  async sendPasswordResetEmail(email: string): Promise<void> {
-    try {
-      const auth = this.firebaseService.getAuth();
-      const link = await auth.generatePasswordResetLink(email);
-      this.logger.log(`Password reset link generated: ${link}`);
-      await this.mailService.sendPasswordResetEmail(email, link);
-      this.logger.log(`Password reset email sent to: ${email}`);
-    } catch (error) {
-      this.logger.error('Error generating password reset link:', error);
-      throw new Error(
-        error instanceof Error ? error.message : 'Error desconocido',
-      );
-    }
-  }
 
   async assignUserToGroup(
     users: UserGroupAssignDto,
