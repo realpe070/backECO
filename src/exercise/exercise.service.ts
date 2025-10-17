@@ -205,43 +205,37 @@ export class ExerciseService {
         throw new NotFoundException('Ejercicio no encontrado');
       }
 
-      // Validar y actualizar solo campos no nulos/undefined/vacíos
-      const currentData = doc.data();
+      // Validar y actualizar solo campos que realmente cambien respecto al original
+      const currentData = doc.data() || {};
       const updatedData: any = { ...currentData };
 
+      const now = new Date().toISOString();
+
       for (const key in updateExerciseDto) {
-        const value = (updateExerciseDto as any)[key];
-        if (value !== null && value !== undefined && value !== '') {
-          updatedData[key] = value;
+        if (!Object.prototype.hasOwnProperty.call(updateExerciseDto, key)) continue;
+        const newValue = (updateExerciseDto as any)[key];
+
+        // Ignorar valores nulos/indefinidos/vacíos
+        if (newValue === null || newValue === undefined || newValue === '') continue;
+        if (key === 'id') continue; // No sobreescribir id
+
+        const oldValue = currentData[key];
+
+        // Comparación profunda para objetos/arrays, comparación simple para primitivos
+        const isDifferent =
+          typeof newValue === 'object' && newValue !== null
+        ? JSON.stringify(newValue) !== JSON.stringify(oldValue)
+        : newValue !== oldValue;
+
+        if (isDifferent) {
+          updatedData[key] = newValue;
         }
       }
 
+      // Actualizar timestamp siempre que haya cambios
+      updatedData.updatedAt = now;
+
       this.logger.log('Datos actualizados a guardar:', updatedData);
-
-       // validar que el nombre y el videoUrl no existan ya en la base de datos
-      const nameQuery = await db
-        .collection('exercises')
-        .where('nombre', '==', updateExerciseDto.nombre)
-        .get();
-        
-      if (!nameQuery.empty) {
-        throw new HttpException(
-          'Ya existe un ejercicio con ese nombre',
-          HttpStatus.BAD_REQUEST,
-        );
-      }
-
-      const videoUrlQuery = await db
-        .collection('exercises')
-        .where('videoUrl', '==', updateExerciseDto.videoUrl)
-        .get();
-
-      if (!videoUrlQuery.empty) {
-        throw new HttpException(
-          'Ya existe un ejercicio con ese videoUrl',
-          HttpStatus.BAD_REQUEST,
-        );
-      }
 
       await exerciseRef.update(updatedData);
 
