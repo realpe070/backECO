@@ -12,50 +12,70 @@ export class MailService {
 
   private readonly logger = new Logger(MailService.name);
   
-  async sendPasswordResetEmail(email: string) {
-    // Generar token único
-    const resetToken = crypto.randomBytes(32).toString('hex');
-    const expirationTime = Date.now() + 3600000; // 1 hora de expiración
+    async sendPasswordResetEmail(email: string) {
+    try {
+      // Generar token único
+      const resetToken = crypto.randomBytes(32).toString('hex');
+      const expirationTime = Date.now() + 3600000; // 1 hora de expiración
 
-    const db = this.firebaseService.getFirestore();
-    
-    // Buscar usuario por email
-    const usersSnapshot = await db.collection('users').where('email', '==', email).get();
-    
-    if (usersSnapshot.empty) {
-      throw new Error('Usuario no encontrado');
+      const db = this.firebaseService.getFirestore();
+      
+      // Buscar usuario por email
+      const usersSnapshot = await db.collection('users').where('email', '==', email).get();
+      
+      if (usersSnapshot.empty) {
+        throw new Error('Usuario no encontrado');
+      }
+
+      const userDoc = usersSnapshot.docs[0];
+      const userId = userDoc.id;
+
+      // Guardar token en colección temporal PRIMERO
+      await db.collection('passwordResetTokens').doc(userId).set({
+        token: resetToken,
+        email: email,
+        expiresAt: expirationTime,
+        used: false,
+        createdAt: Date.now()
+      });
+
+      // Responder inmediatamente al cliente
+      const responsePromise = { message: 'Email de recuperación enviado correctamente' };
+
+      // Enviar email en background (no esperar)
+      this.sendEmailInBackground(email, resetToken);
+
+      return responsePromise;
+
+    } catch (error) {
+      this.logger.error('❌ Error preparando email de recuperación:', error);
+      throw error;
     }
+  }
 
-    const userDoc = usersSnapshot.docs[0];
-    const userId = userDoc.id;
+    // Método privado para enviar email en background
+  private async sendEmailInBackground(email: string, resetToken: string) {
+    try {
+      const resetUrl = `https://backeco-zwl8.onrender.com/reset-password.html?token=${resetToken}`;
 
-    // Guardar token en colección temporal
-    await db.collection('passwordResetTokens').doc(userId).set({
-      token: resetToken,
-      email: email,
-      expiresAt: expirationTime,
-      used: false,
-      createdAt: Date.now()
-    });
+      await this.mailerService.sendMail({
+        to: email,
+        subject: 'Restablece tu contraseña ✔',
+        html: `
+          <h1>¡Restablecer contraseña - EcoBreak! 🎉</h1>
+          <p>Haz clic en el enlace para restablecer tu contraseña:</p>
+          <a href="${resetUrl}" style="background-color: #4CAF50; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">
+            Restablecer contraseña
+          </a>
+          <p>Este enlace expirará en 1 hora.</p>
+          <p>Si no solicitaste este cambio, ignora este email.</p>
+        `,
+      });
 
-    // URL completa con el token
-    const resetUrl = `https://backeco-zwl8.onrender.com/reset-password.html?token=${resetToken}`; 
-
-    await this.mailerService.sendMail({
-      to: email,
-      subject: 'Restablece tu contraseña ✔',
-      html: `
-        <h1>¡Restablecer contraseña - EcoBreak! 🎉</h1>
-        <p>Haz clic en el enlace para restablecer tu contraseña:</p>
-        <a href="${resetUrl}" style="background-color: #4CAF50; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">
-          Restablecer contraseña
-        </a>
-        <p>Este enlace expirará en 1 hora.</p>
-        <p>Si no solicitaste este cambio, ignora este email.</p>
-      `,
-    });
-
-    return { message: 'Email de recuperación enviado correctamente' };
+      this.logger.log(`✅ Email enviado correctamente a: ${email}`);
+    } catch (error) {
+      this.logger.error(`❌ Error enviando email a ${email}:`, error);
+    }
   }
 
   async resetPasswordWithToken(token: string, newPassword: string) {

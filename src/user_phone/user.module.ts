@@ -10,7 +10,6 @@ import { join } from 'path';
 import { MailService } from './email.service';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 
-
 @Module({
   imports: [
     ConfigModule, // 👈 asegúrate de importar ConfigModule
@@ -27,6 +26,12 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
             user: configService.get<string>('ADMIN_EMAIL'),
             pass: configService.get<string>('ADMIN_PASS'),
           },
+          connectionTimeout: 10000, // 10 segundos
+          greetingTimeout: 5000, // 5 segundos
+          socketTimeout: 10000, // 10 segundos
+          pool: true, // Usar pool de conexiones
+          maxConnections: 3, // Máximo 3 conexiones simultáneas
+          maxMessages: 100, // Máximo 100 mensajes por conexión
         },
         defaults: {
           from: '"EcoBreak App" <noreply@ecobreak.com>',
