@@ -1,29 +1,39 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import { UserModule } from './processes/user/user.module';
-import { AuthModule } from './processes/auth/auth.module';
-import { FirebaseModule } from './firebase/firebase.module';
-import { AdminModule } from './processes/admin/admin.module';
-import { HealthController } from './controllers/health.controller';
-import { HealthAppController } from './controllers/health-app.controller';
-import { NetworkInfoController } from './controllers/network-info.controller';
-import { DriveService } from './services/drive.service';
+import { ActivitiesModule } from './exercise/exercise.module';
+import { DriveModule } from './drive_storage/driver.module';
+import { HistoryModule } from './historial/history.module';
+import { NotificationPlanModule } from './notificaciones/notification-plan.module';
+import { FirebaseModule } from '@firebase/firebase.module';
+import { ProcessGroupModule } from './procesos/process-group.module';
+import { AdminModule } from './admin/admin.module';
+import { ProcessUploadModule } from './procesos_cargados/process-upload.module';
+import { UserModule } from './user_phone/user.module';
+import { CategoriesModule } from './categories/category.module';
+import { ExerciseHistoryModule } from './exerciseHistory/exercise-history.module';
+import { ScheduleModule } from '@nestjs/schedule';
+import { MotivosModule } from './motivos/motivos.module';
+import { AppController } from './app.controller';
+
 
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true }),
-    AdminModule,
+    ConfigModule.forRoot({ isGlobal: true, envFilePath: process.env.NODE_ENV === 'production' ? '.env.production' : '.env.development', }),
     FirebaseModule,
+    ActivitiesModule,
+    DriveModule,
+    HistoryModule,
+    NotificationPlanModule,
+    CategoriesModule,
+    ProcessGroupModule,
+    ProcessUploadModule,
+    AdminModule,
+    ExerciseHistoryModule,
     UserModule,
-    AuthModule,
+    MotivosModule,
+    ScheduleModule.forRoot(),
   ],
-  controllers: [
-    HealthController,
-    HealthAppController,
-    NetworkInfoController
-  ],
-  providers: [
-    DriveService,
-  ],
+  controllers: [AppController],
+  providers: [],
 })
 export class AppModule { }
