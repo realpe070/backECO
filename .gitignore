@@ -1,0 +1,135 @@
+# compiled output
+/dist
+/node_modules
+/build
+
+# Logs
+logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+
+# OS
+.DS_Store
+
+# Tests
+/coverage
+/.nyc_output
+
+# IDEs and editors
+/.idea
+.project
+.classpath
+.c9/
+*.launch
+.settings/
+*.sublime-workspace
+
+# IDE - VSCode
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# dotenv environment variable files
+.env
+.env.development.local
+.env.test.local
+.env.production.local
+.env.local
+.env.production
+
+# temp directory
+.temp
+.tmp
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Diagnostic reports (https://nodejs.org/api/report.html)
+report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
+
+# Firebase credentials
+src/firebase/firebase-key.json
+
+# Firebase config files
+config/firebase-key.json
+config/firebase-config.json
+config/firebase-clean.json
+config/temp-firebase.json
+config/*-firebase-adminsdk-*.json
+/config/firebase/*.json
+firebase-config-base64.txt
+config/firebase-real.json
+
+# Excluir el archivo de ejemplo de ser ignorado
+!config/firebase-example.json
+
+# Additional Firebase specific ignores
+.firebase/
+firebase-debug.log
+*-firebase-adminsdk-*.json
+firebase-key*.json
+
+# Dependencias
+node_modules/
+dist/
+
+# Archivos de entorno
+.env
+.env.*
+!.env.example
+.env.production
+
+# Archivos del sistema
+.DS_Store
+Thumbs.db
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# IDEs y editores
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Archivos de compilación
+/dist
+/build
+/out
+
+# Archivos temporales
+*.tmp
+*.temp
+.cache/
+
+# Environment files
+render-env.txt
+firebase-config-base64.txt
+config/firebase.json
+firebase_config_base64.txt
+
+# Excluir archivos con credenciales y configuraciones sensibles
+render-env.txt
+firebase-config-base64.txt
+config/firebase*.json
+src/firebase/firebase-key.json
+.env.production
+firebase_config_base64.txt
+config/firebase-real.json
+config/firebase-key.json
