@@ -7,6 +7,7 @@ export class FirebaseService {
   private readonly logger = new Logger(FirebaseService.name);
   private auth!: admin.auth.Auth;
   private db!: admin.firestore.Firestore;
+  private db!: admin.firestore.Firestore;
 
   constructor(private readonly configService: ConfigService) {
     this.initFirebase();
@@ -84,6 +85,11 @@ export class FirebaseService {
             : 'user',
       };
     } catch (error) {
+      if (error instanceof Error) {
+        this.logger.error('❌ Error verificando token:', error.message);
+      } else {
+        this.logger.error('❌ Error verificando token:', error);
+      }
       if (error instanceof Error) {
         this.logger.error('❌ Error verificando token:', error.message);
       } else {

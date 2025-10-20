@@ -56,6 +56,7 @@ async function bootstrap() {
 
     await app.listen(port, '0.0.0.0');
     logger.log(`🚀 Server running on port ${port} in ${environment} mode`);
+    logger.log(`🚀 Server running on port ${port} in ${environment} mode`);
   } catch (error) {
     logger.error('❌ Server startup error:', error);
     process.exit(1);

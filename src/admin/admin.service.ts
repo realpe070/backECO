@@ -124,7 +124,7 @@ export class AdminService {
       this.logger.error('Error en validación de usuario:', error);
       throw new UnauthorizedException(
         'Credenciales inválidas' +
-          (error instanceof Error ? `: ${error.message}` : ''),
+        (error instanceof Error ? `: ${error.message}` : ''),
       );
     }
   }
@@ -136,7 +136,7 @@ export class AdminService {
         .getUserByEmail(loginDto.email);
       this.logger.log(`Admin user found: ${userRecord.email}`);
 
-      if(!this.verifyAdmin(loginDto)) {
+      if (!this.verifyAdmin(loginDto)) {
         throw new UnauthorizedException('Credenciales inválidas');
       }
 
@@ -169,7 +169,7 @@ export class AdminService {
       this.logger.error('Error en validación de admin:', error);
       throw new UnauthorizedException(
         'Error en la autenticación' +
-          (error instanceof Error ? `: ${error.message}` : ''),
+        (error instanceof Error ? `: ${error.message}` : ''),
       );
     }
   }
