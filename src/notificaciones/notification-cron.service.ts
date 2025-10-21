@@ -3,6 +3,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { ConfigService } from '@nestjs/config';
 
+
 @Injectable()
 export class NotifierService {
   constructor(private readonly configService: ConfigService) {
@@ -35,7 +36,6 @@ export class NotifierService {
   })
   async handleDailyNotifications() {
     const db = admin.firestore();
-    this.logger.debug('📅 Ejecutando notificaciones del día...');
     const now = new Date();
     this.logger.debug('⏰ Cron cada 5 minutos:', new Date().toISOString());
     // Fecha de hoy en formato YYYY-MM-DD
@@ -49,8 +49,8 @@ export class NotifierService {
       now.getMinutes(),
     ).padStart(2, '0')}`;
 
-    await this.sendNotification(fechaHoy, currentTime, db, now);
-    await this.sendActiviesNotifications(fechaHoy, currentTime, db, now);
+    this.sendNotification(fechaHoy, currentTime, db, now);
+    this.sendActiviesNotifications(fechaHoy, currentTime, db, now);
   }
 
   private async sendNotification(
@@ -103,7 +103,9 @@ export class NotifierService {
                 '0',
               )}:${String(planDate.getMinutes()).padStart(2, '0')}`;
 
-              this.logger.log(`🔔 Plan time (1h before): ${planTimeMinusOneHour}`);
+              this.logger.log(
+                `🔔 Plan time (1h before): ${planTimeMinusOneHour}`,
+              );
 
               const planTimeSecondOneHour = `${String(
                 planDateSecond.getHours(),
@@ -112,8 +114,9 @@ export class NotifierService {
                 '0',
               )}:${String(planDateSecond.getMinutes()).padStart(2, '0')}`;
 
-
-              this.logger.log(`🔔 Plan time second (1h before): ${planTimeSecondOneHour}`);
+              this.logger.log(
+                `🔔 Plan time second (1h before): ${planTimeSecondOneHour}`,
+              );
 
               // Si la hora actual coincide con la hora - 1h → enviar
               // Si la hora actual coincide con la hora - 1h o la hora - 6h → enviar
@@ -125,12 +128,11 @@ export class NotifierService {
               };
 
               if (
-                diffInMinutes(currentTime, planTimeMinusOneHour) <= 1 ||
-                diffInMinutes(currentTime, planTimeSecondOneHour) <= 1
+                diffInMinutes(currentTime, planTimeMinusOneHour) <= 5 ||
+                diffInMinutes(currentTime, planTimeSecondOneHour) <= 5
               ) {
                 console.log(
-                  `🚀 Ejecutando plan ${p.id}: notificación ${
-                    currentTime === planTimeMinusOneHour ? '1h' : '6h'
+                  `🚀 Ejecutando plan ${p.id}: notificación ${currentTime === planTimeMinusOneHour ? '1h' : '6h'
                   } antes (${p.time})`,
                 );
 
@@ -142,7 +144,9 @@ export class NotifierService {
 
                 const userRefs = usersSnap.docs.map((d) => d.id);
 
-                this.logger.log(`Found ${userRefs.length} users for group ${p.group}.`);
+                this.logger.log(
+                  `Found ${userRefs.length} users for group ${p.group}.`,
+                );
 
                 // Filtrar usuarios que tienen pausas activas hoy entre las 8:00 y las 23:00
                 const currentHourStr = `${this.pad(now.getHours())}:${this.pad(now.getMinutes())}`; // Ej: "09:05"
@@ -154,19 +158,23 @@ export class NotifierService {
                   .where('idUser', 'in', userRefs)
                   .where('notifiActive', '==', true)
                   .where('dateStart', '<=', currentHourStr) // dateStart <= currentHourStr
-                  .where('dateEnd', '>=', currentHourStr)   // dateEnd >= currentHourStr
+                  .where('dateEnd', '>=', currentHourStr) // dateEnd >= currentHourStr
                   .get();
 
-                this.logger.log(`Found ${userPauseSnap.docs.length} active pauses for users.`);
+                this.logger.log(
+                  `Found ${userPauseSnap.docs.length} active pauses for users.`,
+                );
 
                 // Solo considerar usuarios que tienen pausas activas en el rango horario actual
                 const pausedUsers = userPauseSnap.docs.map(
                   (doc) => doc.data().idUser,
                 );
 
-                this.logger.log(`Found ${pausedUsers.length} paused users for group ${p.group}.`);
-                const usersDisponibles = userRefs.filter(
-                  (id) => pausedUsers.includes(id),
+                this.logger.log(
+                  `Found ${pausedUsers.length} paused users for group ${p.group}.`,
+                );
+                const usersDisponibles = userRefs.filter((id) =>
+                  pausedUsers.includes(id),
                 );
 
                 this.logger.log(
@@ -179,7 +187,9 @@ export class NotifierService {
                     .where('userId', '==', userId)
                     .get();
 
-                  this.logger.log(`Found ${devicesSnap.docs.length} devices for user ${userId}.`);
+                  this.logger.log(
+                    `Found ${devicesSnap.docs.length} devices for user ${userId}.`,
+                  );
 
                   devicesSnap.forEach((d) => {
                     const device = d.data();
@@ -195,17 +205,23 @@ export class NotifierService {
                 const dataDay = plan.endDate.split('-')[2];
                 const dataDay2 = plan.startDate.split('-')[2];
 
-                let bodyMessage = ''
+                let bodyMessage = '';
 
-                if (currentTime >= planTimeMinusOneHour && currentTime < planTimeSecondOneHour)
-                    bodyMessage = `⏰ En 1 hora tienes ${p.name} (${p.time}) disponible del ${dataDay2.split('T')[0]} al ${dataDay.split('T')[0]}.`
-               if (currentTime >= planTimeSecondOneHour && currentTime > planTimeMinusOneHour)
-                    bodyMessage = `⏰ En 1 hora tienes ${p.name} (${p.timeSecond}) disponible del ${dataDay2.split('T')[0]} al ${dataDay.split('T')[0]}.`
+                if (
+                  currentTime >= planTimeMinusOneHour &&
+                  currentTime < planTimeSecondOneHour
+                )
+                  bodyMessage = `⏰ En 1 hora tienes ${p.name} (${p.time}) disponible del ${dataDay2.split('T')[0]} al ${dataDay.split('T')[0]}.`;
+                if (
+                  currentTime >= planTimeSecondOneHour &&
+                  currentTime > planTimeMinusOneHour
+                )
+                  bodyMessage = `⏰ En 1 hora tienes ${p.name} (${p.timeSecond}) disponible del ${dataDay2.split('T')[0]} al ${dataDay.split('T')[0]}.`;
 
                 const message = {
                   notification: {
                     title: `Realiza las actividades de ${p.name} 🏋️‍♂️`,
-                    body:  bodyMessage,
+                    body: bodyMessage,
                   },
                   data: {
                     customKey: '',
@@ -240,7 +256,7 @@ export class NotifierService {
         console.log(`Desactivando planes: ${planesToDesactivar.join(', ')}`);
         for (const id of planesToDesactivar) {
           await db.collection('plans').doc(id).update({
-        estado: false,
+            estado: false,
           });
           console.log(`❌ Plan ${id} desactivado (ya venció)`);
         }
@@ -264,10 +280,14 @@ export class NotifierService {
       ...(doc.data() as { nombre?: string }),
     }));
 
+
     // Obtener las frecuencias programadas de notificación
     const programadosFrecuencias = await db
       .collection('notificationPauses')
+      .where('notifiActive', '==', true) // Solo activas
+      .where('frecuencia', '>', '0') // Solo con frecuencia válida
       .get();
+
 
     for (const doc of programadosFrecuencias.docs) {
       const frecuenciaData = doc.data();
@@ -282,20 +302,26 @@ export class NotifierService {
       const horaInicio = parseInt(frecuenciaData.dateStart.split(':')[0]); // "02:00" -> 2
       const horaFin = parseInt(frecuenciaData.dateEnd.split(':')[0]); // "19:00" -> 19
       const horaActual = now.getHours();
+      const minutosActuales = now.getMinutes();
 
       // Verificar si la hora actual está dentro del rango
-      if (horaActual < horaInicio || horaActual > horaFin) continue;
+      if (horaActual < horaInicio || horaActual > horaFin) {
+        this.logger.log(`⏭️ Usuario ${userId}: Fuera del rango horario`);
+        continue;
+      }
 
-      this.logger.log(`Hora actual: ${horaActual}, Hora inicio: ${horaInicio}, Hora fin: ${horaFin}, Frecuencia: ${frecuenciaHoras}`);
+      const horasTranscurridas = horaActual - horaInicio;
+      const esHoraDeEnvio = horasTranscurridas % frecuenciaHoras === 0;
+      const esMinutoValido = minutosActuales <= 4; // Enviar en los primeros 5 minutos de la hora
 
-      // Verificar si la hora actual es múltiplo de la frecuencia desde la hora de inicio
-      if (
-        (horaActual - horaInicio) % frecuenciaHoras === 0 &&
-        now.getMinutes() === 0
-      ) {
+      if (esHoraDeEnvio && esMinutoValido) {
+        this.logger.log(`🚀 Enviando notificación a usuario: ${userId}`);
+
         // Seleccionar una actividad aleatoria
         const actividadAleatoria =
           actividades[Math.floor(Math.random() * actividades.length)];
+
+        this.logger.log(`🎯 Actividad seleccionada: ${actividadAleatoria?.nombre || 'Desconocida'}`);
 
         // Buscar los dispositivos del usuario
         const devicesSnap = await db
@@ -303,31 +329,56 @@ export class NotifierService {
           .where('userId', '==', userId)
           .get();
 
+
         const tokens: string[] = [];
         devicesSnap.forEach((d) => {
           const device = d.data();
-          if (device.deviceToken) tokens.push(device.deviceToken);
+          if (device.deviceToken) {
+            tokens.push(device.deviceToken);
+            this.logger.log(`🔑 Token agregado para ${userId}: ${device.deviceToken.substring(0, 20)}...`);
+          }
         });
 
-        if (tokens.length === 0) continue;
+        if (tokens.length === 0) {
+          this.logger.warn(`⚠️ Usuario ${userId}: No hay tokens de dispositivos disponibles`);
+          continue;
+        }
 
         // Enviar notificación
         const message = {
           notification: {
             title: `¡Hora de moverse! 💪`,
-            body: `Tiene una actividad pendiente: ${actividadAleatoria?.nombre || 'Apresúrate a hacer ejercicio'}.`,
+            body: `Tienes una actividad pendiente: ${actividadAleatoria?.nombre || 'Apresúrate a hacer ejercicio'}.`,
           },
           data: {
-            actividadId: actividadAleatoria?.id,
+            actividadId: actividadAleatoria?.id || '',
+            type: 'activity_reminder',
+            timestamp: now.toISOString(),
           },
           tokens,
         };
 
-        const response = await admin.messaging().sendEachForMulticast(message);
-        const successCount = response.responses.filter((r) => r.success).length;
-        this.logger.log(
-          `Notificación de frecuencia enviada a ${userId}: ${successCount} dispositivos`,
-        );
+        try {
+          const response = await admin.messaging().sendEachForMulticast(message);
+          const successCount = response.responses.filter((r) => r.success).length;
+          const failureCount = response.responses.filter((r) => !r.success).length;
+
+          this.logger.log(
+            `✅ Notificación enviada a ${userId}: ${successCount} éxitos, ${failureCount} fallos`
+          );
+
+          // Log de errores específicos
+          response.responses.forEach((resp, index) => {
+            if (!resp.success) {
+              this.logger.error(`❌ Error enviando a token ${index}: ${resp.error?.message}`);
+            }
+          });
+
+        } catch (error) {
+          this.logger.error(`❌ Error enviando notificación a ${userId}:`, error);
+        }
+      } else {
+        this.logger.log(`⏭️ Usuario ${userId}: No es momento de enviar (hora: ${esHoraDeEnvio}, minuto: ${esMinutoValido})`);
       }
     }
   }
