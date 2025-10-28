@@ -31,7 +31,7 @@ export class NotifierService {
   }
   private readonly logger = new Logger(NotifierService.name);
 
-  @Cron('*/5 * * * *', {
+  @Cron('* * * * *', {
     timeZone: 'America/Bogota', // ajusta a tu zona
   })
   async handleDailyNotifications() {
@@ -128,8 +128,8 @@ export class NotifierService {
               };
 
               if (
-                diffInMinutes(currentTime, planTimeMinusOneHour) <= 5 ||
-                diffInMinutes(currentTime, planTimeSecondOneHour) <= 5
+                diffInMinutes(currentTime, planTimeMinusOneHour) <= 1 ||
+                diffInMinutes(currentTime, planTimeSecondOneHour) <= 1
               ) {
                 console.log(
                   `🚀 Ejecutando plan ${p.id}: notificación ${currentTime === planTimeMinusOneHour ? '1h' : '6h'
@@ -312,7 +312,7 @@ export class NotifierService {
 
       const horasTranscurridas = horaActual - horaInicio;
       const esHoraDeEnvio = horasTranscurridas % frecuenciaHoras === 0;
-      const esMinutoValido = minutosActuales <= 4; // Enviar en los primeros 5 minutos de la hora
+      const esMinutoValido = minutosActuales <= 0; // Enviar en los primeros 1 minutos de la hora
 
       if (esHoraDeEnvio && esMinutoValido) {
         this.logger.log(`🚀 Enviando notificación a usuario: ${userId}`);
