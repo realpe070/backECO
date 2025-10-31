@@ -37,7 +37,7 @@ export class NotifierService {
   async handleDailyNotifications() {
     const db = admin.firestore();
     const now = new Date();
-    this.logger.debug('⏰ Cron cada 5 minutos:', new Date().toISOString());
+    this.logger.debug('⏰ Cron cada 1 minutos:', new Date().toISOString());
     // Fecha de hoy en formato YYYY-MM-DD
     const yyyy = now.getFullYear();
     const mm = String(now.getMonth() + 1).padStart(2, '0');
@@ -128,8 +128,8 @@ export class NotifierService {
               };
 
               if (
-                diffInMinutes(currentTime, planTimeMinusOneHour) <= 1 ||
-                diffInMinutes(currentTime, planTimeSecondOneHour) <= 1
+                diffInMinutes(currentTime, planTimeMinusOneHour) == 0 ||
+                diffInMinutes(currentTime, planTimeSecondOneHour) == 0
               ) {
                 console.log(
                   `🚀 Ejecutando plan ${p.id}: notificación ${currentTime === planTimeMinusOneHour ? '1h' : '6h'
